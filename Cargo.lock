@@ -458,7 +458,7 @@ name = "hello_world"
 version = "0.1.0"
 dependencies = [
  "cosmwasm-schema",
- "schemars 1.0.3",
+ "schemars 0.8.22",
  "secret-cosmwasm-std",
  "secret-cosmwasm-storage",
  "secret-toolkit",
