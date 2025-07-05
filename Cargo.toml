@@ -3,7 +3,7 @@ name = "hello_world"
 version = "0.1.0"
 edition = "2024"
 
-
+# cdylib is required to create a proper web assembly binary, but such a library cannot be used as a dependency for other Rust crates - for now
 [lib]
 crate-type = ["cdylib", "rlib"]
 
@@ -22,7 +22,7 @@ secret-toolkit = { git = "https://github.com/scrtlabs/secret-toolkit", tag = "v0
   "utils",
 ] }
 schemars = { version = "0.8.22" }
-serde = { version = "1.0.219" }
+serde = { version = "1.0.219", default-features = false, features = ["derive"] }
 thiserror = { version = "2.0.12" }
 cosmwasm-schema = "3.0.1"
 

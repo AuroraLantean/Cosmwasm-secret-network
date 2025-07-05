@@ -5,6 +5,8 @@ use secret_toolkit::storage::Keymap;
 use serde::{Deserialize, Serialize};
 
 //---------== singleton
+//pub const TOTAL: Item<u64> = Item::new(TOTAL_KEY);
+
 pub static CONFIG_KEY: &[u8] = b"config";
 
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq, JsonSchema)]

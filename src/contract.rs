@@ -3,7 +3,7 @@ use std::fmt;
 
 use crate::{
   error::ContractError,
-  msg::{ExecuteMsg, InstantiateMsg, PassowrdResponse, QueryMsg},
+  msg::{ExecuteMsg, GreetResp, InstantiateMsg, PassowrdResp, QueryMsg},
   state::{PASSWORD, Password, config},
 };
 use cosmwasm_std::{
@@ -71,3 +71,34 @@ pub fn try_reset(deps: DepsMut, _env: Env, count: i32) -> StdResult<Response> {
   deps.api.debug("count incremented successfully");
   Ok(Response::default())
 }
+
+//query always returns serialized data
+#[entry_point]
+pub fn query(deps: Deps, _env: Env, msg: QueryMsg) -> StdResult<Binary> {
+  use QueryMsg::*;
+  match msg {
+    Greet { name } => to_binary(&greet(deps, name)?),
+    GetCount {} => to_binary(&query_count(deps)?),
+    GetPassword { password_key } => to_binary(&query_password(deps, password_key)?),
+  }
+} //_msg: Empty ... an empty JSON
+fn greet(deps: Deps, name: String) -> StdResult<GreetResp> {
+  let resp = GreetResp {
+    greet: format!("Hello {}", name), //"Hello World".to_owned(),
+  };
+  Ok(resp)
+}
+fn query_password(deps: Deps, password_key: String) -> StdResult<PassowrdResp> {
+  let resp = PassowrdResp {
+    password: "fake_password".to_owned(),
+  };
+  Ok(resp)
+}
+fn query_count(deps: Deps) -> StdResult<i32> {
+  let count = 0;
+  Ok(count)
+}
+/*fn query_count(deps: Deps) -> StdResult<TotalWeightResponse> {
+  let weight = TOTAL.load(deps.storage)?;
+  Ok(TotalWeightResponse { weight })
+}*/
