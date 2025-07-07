@@ -3,13 +3,13 @@
 
 use crate::{
   //error::ContractError,
-  msg::{ExecuteMsg, GreetResp, InstantiateMsg, PassowrdResp, QueryMsg},
-  state::{PASSWORD, Password, config},
+  msg::{ExecuteMsg, GreetResp, InstantiateMsg, QueryMsg, UserResp},
+  state::{ADDR_VOTE, USERS, User, config},
 };
 use cosmwasm_std::{
-  Binary, Deps, DepsMut, Empty, Env, MessageInfo, Response, StdError, StdResult, entry_point,
+  Addr, Binary, Deps, DepsMut, Empty, Env, MessageInfo, Response, StdError, StdResult, entry_point,
   to_binary,
-}; //ensure, ensure_ne, BankMsg,
+}; //ensure, ensure_ne, BankMsg, DepsMut
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 pub fn instantiate(
@@ -23,18 +23,13 @@ pub fn instantiate(
 
 #[cfg_attr(not(feature = "library"), entry_point)]
 //#[entry_point]
-pub fn execute(
-  deps: DepsMut,
-  env: Env,
-  _info: MessageInfo,
-  msg: ExecuteMsg,
-) -> StdResult<Response>
+pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> StdResult<Response>
 /*Result<Response<Empty>, ContractError>*/ {
   match msg {
     ExecuteMsg::StorePassword {
       password_key,
       password_value,
-    } => try_store_password(deps, env, password_key, password_value),
+    } => try_store_password(deps, env, info, password_key, password_value),
     ExecuteMsg::Increment {} => try_increment(deps, env),
     ExecuteMsg::Reset { count } => try_reset(deps, env, count),
   }
@@ -43,13 +38,19 @@ pub fn execute(
 pub fn try_store_password(
   deps: DepsMut,
   _env: Env,
-  _password_key: String,
+  info: MessageInfo,
+  password_key: String,
   password_value: String,
 ) -> StdResult<Response> /*Result<Response, ContractError>*/ {
-  let _password = Password {
+  deps.api.debug("try_store_password");
+  let sender: Addr = info.sender;
+  deps.api.debug(sender.as_str());
+
+  let password = User {
     password: password_value.clone(),
   };
-  //PASSWORD.insert(deps.storage, &password_key, &password)?; //expected mutable reference `&mut dyn cosmwasm_std::traits::Storage`   found mutable reference `&mut dyn Storage
+  //ADDR_VOTE.insert(deps.storage, &sender, &password)?;
+  USERS.insert(deps.storage, &password_key, &password)?;
   deps.api.debug("password stored successfully");
   Ok(Response::default())
 }
@@ -88,9 +89,13 @@ fn greet(_deps: Deps, _env: Env, name: String) -> StdResult<GreetResp> {
   };
   Ok(resp)
 }
-fn query_password(_deps: Deps, _password_key: String) -> StdResult<PassowrdResp> {
-  let resp = PassowrdResp {
-    password: "fake_password".to_owned(),
+fn query_password(deps: Deps, password_key: String) -> StdResult<UserResp> {
+  let user = USERS
+    .get(deps.storage, &password_key)
+    .ok_or(StdError::generic_err("password_key incorrect"))?;
+
+  let resp = UserResp {
+    password: user.password,
   };
   Ok(resp)
 }
@@ -103,30 +108,76 @@ fn query_count(_deps: Deps) -> StdResult<i32> {
   Ok(TotalWeightResponse { weight })
 }*/
 
-// cargo test
+// cargo test -- --nocapture
 #[cfg(test)]
 mod tests {
   use super::*;
-  //use cosmwasm_std::from_binary;
-  use cosmwasm_std::testing::{mock_dependencies, mock_env, mock_info};
+  use cosmwasm_std::{
+    Api, Coin, StdResult, Uint128, from_binary,
+    testing::{
+      MockStorage, mock_dependencies, mock_dependencies_with_balance, mock_env, mock_info,
+    },
+  }; //from_binary, Coin, Uint128, from_binary
+  use secret_toolkit::storage::{Item, Keymap}; //https://github.com/scrtlabs/secret-toolkit/tree/master/packages/storage
+  use serde::{Deserialize, Serialize};
+
+  #[test]
+  fn store_password() {
+    let mut deps = mock_dependencies_with_balance(&[Coin {
+      denom: "token".to_owned(),
+      amount: Uint128::new(2),
+    }]);
+    let info = mock_info(
+      "owner",
+      &[Coin {
+        denom: "token".to_owned(),
+        amount: Uint128::new(2),
+      }],
+    );
+    let init_msg = InstantiateMsg {}; //instantiate the contract
+    let _res = instantiate(deps.as_mut(), mock_env(), info, init_msg).unwrap();
+
+    //User1 stores password
+    let info = mock_info(
+      "user1",
+      &[Coin {
+        denom: "token".to_owned(),
+        amount: Uint128::new(2),
+      }],
+    );
+    let password1 = "pw1".to_owned();
+    let msg = ExecuteMsg::StorePassword {
+      password_key: "user1".to_owned(),
+      password_value: password1.clone(),
+    };
+    let _res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
+
+    //read password
+    let msg = QueryMsg::GetPassword {
+      password_key: "user1".to_owned(),
+    };
+    let res: Binary = query(deps.as_ref(), mock_env(), msg).unwrap();
+    let user: UserResp = from_binary(&res).unwrap();
+    println!("Queried password: {}", user.password);
+    assert_eq!(password1, user.password);
+  }
 
   #[test]
   fn greet_query() {
     let name = "John".to_owned();
     let mut deps = mock_dependencies();
-    let env = mock_env();
 
-    instantiate(
+    let _res = instantiate(
       deps.as_mut(),
-      env.clone(),
+      mock_env(),
       mock_info("addr0", &[]),
       InstantiateMsg {}, //Empty {},
     )
     .unwrap();
 
-    let resp = greet(deps.as_ref(), env, name.clone()).unwrap();
+    let resp = greet(deps.as_ref(), mock_env(), name.clone()).unwrap();
     //from_binary(&resp).unwrap();
-    println!("resp {:?}", resp);
+
     assert_eq!(
       resp,
       GreetResp {

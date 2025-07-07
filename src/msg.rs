@@ -35,7 +35,7 @@ pub enum QueryMsg {
 //must have pub in fields!
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
-pub struct PassowrdResp {
+pub struct UserResp {
   pub password: String,
 }
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq, JsonSchema)]

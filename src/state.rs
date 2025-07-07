@@ -1,7 +1,7 @@
 use cosmwasm_std::{Addr, Storage};
 use cosmwasm_storage::{ReadonlySingleton, Singleton, singleton, singleton_read};
 use schemars::JsonSchema;
-use secret_toolkit::storage::Keymap;
+use secret_toolkit::storage::{Keymap, KeymapBuilder};
 use serde::{Deserialize, Serialize};
 
 //---------== singleton
@@ -21,9 +21,12 @@ pub fn config(storage: &mut dyn Storage) -> Singleton<State> {
 }
 
 //---------== KeyMap
-pub static PASSWORD: Keymap<String, Password> = Keymap::new(b"password");
+pub static USERS: Keymap<String, User> = Keymap::new(b"password");
+
+pub static ADDR_VOTE: Keymap<Addr, User> =
+  KeymapBuilder::new(b"page_vote").with_page_size(13).build();
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
-pub struct Password {
+pub struct User {
   pub password: String,
 }
