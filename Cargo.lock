@@ -159,6 +159,20 @@ dependencies = [
 ]
 
 [[package]]
+name = "cosmwasm_demo1"
+version = "0.1.0"
+dependencies = [
+ "cosmwasm-schema",
+ "schemars 0.8.22",
+ "secret-cosmwasm-std",
+ "secret-cosmwasm-storage",
+ "secret-toolkit",
+ "secret-toolkit-storage 0.10.3",
+ "serde",
+ "thiserror 2.0.12",
+]
+
+[[package]]
 name = "cpufeatures"
 version = "0.2.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -452,20 +466,6 @@ name = "heck"
 version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2304e00983f87ffb38b55b444b5e3b60a884b5d30c0fca7d82fe33449bbe55ea"
-
-[[package]]
-name = "hello_world"
-version = "0.1.0"
-dependencies = [
- "cosmwasm-schema",
- "schemars 0.8.22",
- "secret-cosmwasm-std",
- "secret-cosmwasm-storage",
- "secret-toolkit",
- "secret-toolkit-storage 0.10.3",
- "serde",
- "thiserror 2.0.12",
-]
 
 [[package]]
 name = "hermit-abi"
