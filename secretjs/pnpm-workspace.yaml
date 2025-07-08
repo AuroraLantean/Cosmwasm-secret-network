@@ -1,0 +1,6 @@
+ignoredBuiltDependencies:
+  - protobufjs
+  - tiny-secp256k1
+
+onlyBuiltDependencies:
+  - secretjs

@@ -26,6 +26,7 @@ localhost
 justfile
 slumber.yml
 db.sqlite
+secretjs/node_modules
 # MSVC Windows builds of rustc generate these, which store debugging information
 *.pdb
 

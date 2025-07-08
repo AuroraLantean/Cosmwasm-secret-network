@@ -1,0 +1,18 @@
+{
+  "name": "secretjs",
+  "description": "https://github.com/scrtlabs/secret.js",
+  "module": "index.ts",
+  "type": "module",
+  "scripts": {
+  },
+  "devDependencies": {
+    "@biomejs/biome": "2.1.0",
+    "@types/bun": "latest"
+  },
+  "peerDependencies": {
+    "typescript": "^5"
+  },
+  "dependencies": {
+    "secretjs": "^1.15.1"
+  }
+}
