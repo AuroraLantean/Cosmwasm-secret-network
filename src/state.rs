@@ -19,6 +19,9 @@ pub struct State {
 pub fn config(storage: &mut dyn Storage) -> Singleton<State> {
   singleton(storage, CONFIG_KEY)
 }
+pub fn config_read(storage: &dyn Storage) -> ReadonlySingleton<State> {
+  singleton_read(storage, CONFIG_KEY)
+}
 
 //---------== KeyMap
 pub static USERS: Keymap<String, User> = Keymap::new(b"password");

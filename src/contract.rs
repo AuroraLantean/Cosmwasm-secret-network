@@ -1,28 +1,36 @@
 //use schemars::JsonSchema;
 //use std::fmt;
-
 use crate::{
   //error::ContractError,
-  msg::{ExecuteMsg, GreetResp, InstantiateMsg, QueryMsg, UserResp},
-  state::{ADDR_VOTE, USERS, User, config},
+  msg::{CountResponse, ExecuteMsg, GreetResp, InstantiateMsg, QueryMsg, UserResp},
+  state::{ADDR_VOTE, State, USERS, User, config, config_read},
 };
 use cosmwasm_std::{
   Addr, Binary, Deps, DepsMut, Empty, Env, MessageInfo, Response, StdError, StdResult, entry_point,
   to_binary,
 }; //ensure, ensure_ne, BankMsg, DepsMut
 
-#[cfg_attr(not(feature = "library"), entry_point)]
+//#[cfg_attr(not(feature = "library"), entry_point)]
+#[entry_point]
 pub fn instantiate(
-  _deps: DepsMut,     //accessing contract states
-  _env: Env,          //current blockchain state
-  _info: MessageInfo, //sender addr and incoming native token
-  _msg: InstantiateMsg,
+  deps: DepsMut,     //accessing contract states
+  _env: Env,         //current blockchain state
+  info: MessageInfo, //sender addr and incoming native token
+  msg: InstantiateMsg,
 ) -> StdResult<Response> {
+  let state = State {
+    count: msg.count,
+    owner: info.sender.clone(),
+  };
+  deps
+    .api
+    .debug(format!("Contract was initialized by {}", info.sender).as_str());
+  config(deps.storage).save(&state)?;
   Ok(Response::default())
 }
 
-#[cfg_attr(not(feature = "library"), entry_point)]
-//#[entry_point]
+//#[cfg_attr(not(feature = "library"), entry_point)]
+#[entry_point]
 pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> StdResult<Response>
 /*Result<Response<Empty>, ContractError>*/ {
   match msg {
@@ -31,7 +39,7 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
       password_value,
     } => try_store_password(deps, env, info, password_key, password_value),
     ExecuteMsg::Increment {} => try_increment(deps, env),
-    ExecuteMsg::Reset { count } => try_reset(deps, env, count),
+    ExecuteMsg::Reset { count } => try_reset(deps, env, info, count),
   }
 }
 
@@ -64,12 +72,17 @@ pub fn try_increment(deps: DepsMut, _env: Env) -> StdResult<Response> {
   Ok(Response::default())
 }
 
-pub fn try_reset(deps: DepsMut, _env: Env, count: i32) -> StdResult<Response> {
+pub fn try_reset(deps: DepsMut, _env: Env, info: MessageInfo, count: i32) -> StdResult<Response> {
+  let sender_address = info.sender.clone();
+
   config(deps.storage).update(|mut state| -> Result<_, StdError> {
+    if sender_address != state.owner {
+      return Err(StdError::generic_err("Only the owner can reset count"));
+    };
     state.count = count;
     Ok(state)
   })?;
-  deps.api.debug("count incremented successfully");
+  deps.api.debug("count reset successfully");
   Ok(Response::default())
 }
 
@@ -99,9 +112,9 @@ fn query_password(deps: Deps, password_key: String) -> StdResult<UserResp> {
   };
   Ok(resp)
 }
-fn query_count(_deps: Deps) -> StdResult<i32> {
-  let count = 0;
-  Ok(count)
+fn query_count(deps: Deps) -> StdResult<CountResponse> {
+  let state = config_read(deps.storage).load()?;
+  Ok(CountResponse { count: state.count })
 }
 /*fn query_count(deps: Deps) -> StdResult<TotalWeightResponse> {
   let weight = TOTAL.load(deps.storage)?;
@@ -112,14 +125,119 @@ fn query_count(_deps: Deps) -> StdResult<i32> {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use cosmwasm_std::{
-    Api, Coin, StdResult, Uint128, from_binary,
-    testing::{
-      MockStorage, mock_dependencies, mock_dependencies_with_balance, mock_env, mock_info,
-    },
-  }; //from_binary, Coin, Uint128, from_binary
+  use cosmwasm_std::testing::*;
+  use cosmwasm_std::{Api, Coin, StdError, StdResult, Uint128, from_binary};
   use secret_toolkit::storage::{Item, Keymap}; //https://github.com/scrtlabs/secret-toolkit/tree/master/packages/storage
-  use serde::{Deserialize, Serialize};
+
+  #[test]
+  fn test_query_count() {
+    let mut deps = mock_dependencies();
+    let info = mock_info(
+      "owner0",
+      &[Coin {
+        denom: "token1".to_string(),
+        amount: Uint128::new(1000),
+      }],
+    );
+    let init_msg = InstantiateMsg { count: 17 };
+
+    // we can just call .unwrap() to assert this was a success
+    let res = instantiate(deps.as_mut(), mock_env(), info, init_msg).unwrap();
+
+    assert_eq!(0, res.messages.len());
+
+    // it worked, let's query the state
+    let res = query(deps.as_ref(), mock_env(), QueryMsg::GetCount {}).unwrap();
+    let value: CountResponse = from_binary(&res).unwrap();
+    assert_eq!(17, value.count);
+  }
+
+  #[test]
+  fn test_increment() {
+    let mut deps = mock_dependencies_with_balance(&[Coin {
+      denom: "token".to_string(),
+      amount: Uint128::new(2),
+    }]);
+    let info = mock_info(
+      "owner1",
+      &[Coin {
+        denom: "token".to_string(),
+        amount: Uint128::new(1000),
+      }],
+    );
+    let init_msg = InstantiateMsg { count: 17 };
+
+    let _res = instantiate(deps.as_mut(), mock_env(), info, init_msg).unwrap();
+
+    // anyone can increment
+    let info = mock_info(
+      "anyone",
+      &[Coin {
+        denom: "token".to_string(),
+        amount: Uint128::new(2),
+      }],
+    );
+
+    let exec_msg = ExecuteMsg::Increment {};
+    let _res = execute(deps.as_mut(), mock_env(), info, exec_msg).unwrap();
+
+    // should increase counter by 1
+    let res = query(deps.as_ref(), mock_env(), QueryMsg::GetCount {}).unwrap();
+    let value: CountResponse = from_binary(&res).unwrap();
+    assert_eq!(18, value.count);
+  }
+
+  #[test]
+  fn test_reset() {
+    let mut deps = mock_dependencies_with_balance(&[Coin {
+      denom: "token".to_string(),
+      amount: Uint128::new(2),
+    }]);
+    let info = mock_info(
+      "owner2",
+      &[Coin {
+        denom: "token".to_string(),
+        amount: Uint128::new(2),
+      }],
+    );
+    let init_msg = InstantiateMsg { count: 17 };
+
+    let _res = instantiate(deps.as_mut(), mock_env(), info, init_msg).unwrap();
+
+    // not anyone can reset
+    let info = mock_info(
+      "anyone",
+      &[Coin {
+        denom: "token".to_string(),
+        amount: Uint128::new(2),
+      }],
+    );
+    let exec_msg = ExecuteMsg::Reset { count: 5 };
+
+    let res = execute(deps.as_mut(), mock_env(), info, exec_msg);
+
+    match res {
+      Err(StdError::GenericErr { .. }) => {}
+      _ => panic!("Must return unauthorized error"),
+    }
+
+    // only the owner2 can reset the counter
+    let info = mock_info(
+      "owner2",
+      &[Coin {
+        denom: "token".to_string(),
+        amount: Uint128::new(2),
+      }],
+    );
+    let exec_msg = ExecuteMsg::Reset { count: 5 };
+
+    let _res = execute(deps.as_mut(), mock_env(), info, exec_msg).unwrap();
+
+    // should now be 5
+    let res = query(deps.as_ref(), mock_env(), QueryMsg::GetCount {}).unwrap();
+    let value: CountResponse = from_binary(&res).unwrap();
+    assert_eq!(5, value.count);
+  }
 
   #[test]
   fn store_password() {
@@ -131,10 +249,11 @@ mod tests {
       "owner",
       &[Coin {
         denom: "token".to_owned(),
-        amount: Uint128::new(2),
+        amount: Uint128::new(1000),
       }],
     );
-    let init_msg = InstantiateMsg {}; //instantiate the contract
+    let init_msg = InstantiateMsg { count: 0 }; //instantiate the contract
+
     let _res = instantiate(deps.as_mut(), mock_env(), info, init_msg).unwrap();
 
     //User1 stores password
@@ -171,7 +290,7 @@ mod tests {
       deps.as_mut(),
       mock_env(),
       mock_info("addr0", &[]),
-      InstantiateMsg {}, //Empty {},
+      InstantiateMsg { count: 0 }, //Empty {},
     )
     .unwrap();
 

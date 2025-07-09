@@ -18,7 +18,6 @@ secret-toolkit = { git = "https://github.com/scrtlabs/secret-toolkit", tag = "v0
   "storage",
   "viewing-key",
   "serialization",
-  "viewing-key",
   "permit",
   "crypto",
   "utils",
@@ -27,5 +26,3 @@ schemars = { version = "0.8.22" }
 serde = { version = "1.0.219", default-features = false, features = ["derive"] }
 thiserror = { version = "2.0.12" }
 cosmwasm-schema = "3.0.1"
-
-#cosmwasm-std = { version = "1.0.0-beta8", features = ["staking"] }

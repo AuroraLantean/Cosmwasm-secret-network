@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 //-----== Instantiate
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq, JsonSchema)]
 pub struct InstantiateMsg {
+  pub count: i32,
   //pub admin: String,
 }
 
@@ -33,6 +34,12 @@ pub enum QueryMsg {
 
 //-----== custom struct for each query response
 //must have pub in fields!
+#[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq, JsonSchema)]
+#[serde(rename_all = "snake_case")]
+pub struct CountResponse {
+  pub count: i32,
+}
+
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub struct UserResp {
