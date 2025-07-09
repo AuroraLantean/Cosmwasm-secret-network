@@ -2,7 +2,7 @@
 //use std::fmt;
 use crate::{
   //error::ContractError,
-  msg::{CountResponse, ExecuteMsg, GreetResp, InstantiateMsg, QueryMsg, UserResp},
+  msg::{CountResp, ExecuteMsg, GreetResp, InstantiateMsg, QueryMsg, UserResp},
   state::{ADDR_VOTE, State, USERS, User, config, config_read},
 };
 use cosmwasm_std::{
@@ -38,7 +38,8 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
       password_key,
       password_value,
     } => try_store_password(deps, env, info, password_key, password_value),
-    ExecuteMsg::Increment {} => try_increment(deps, env),
+    ExecuteMsg::Increment { amt } => try_increment(deps, env, amt),
+    ExecuteMsg::Decrement { amt } => try_decrement(deps, env, amt),
     ExecuteMsg::Reset { count } => try_reset(deps, env, info, count),
   }
 }
@@ -63,16 +64,27 @@ pub fn try_store_password(
   Ok(Response::default())
 }
 
-pub fn try_increment(deps: DepsMut, _env: Env) -> StdResult<Response> {
+pub fn try_increment(deps: DepsMut, _env: Env, amt: u64) -> StdResult<Response> {
   config(deps.storage).update(|mut state| -> Result<_, StdError> {
-    state.count += 1;
+    state.count += amt;
     Ok(state)
   })?;
   deps.api.debug("count incremented successfully");
   Ok(Response::default())
 }
+pub fn try_decrement(deps: DepsMut, _env: Env, amt: u64) -> StdResult<Response> {
+  config(deps.storage).update(|mut state| -> Result<_, StdError> {
+    if state.count < amt {
+      return Err(StdError::generic_err(" count < amount"));
+    };
+    state.count -= amt;
+    Ok(state)
+  })?;
+  deps.api.debug("count decremented successfully");
+  Ok(Response::default())
+}
 
-pub fn try_reset(deps: DepsMut, _env: Env, info: MessageInfo, count: i32) -> StdResult<Response> {
+pub fn try_reset(deps: DepsMut, _env: Env, info: MessageInfo, count: u64) -> StdResult<Response> {
   let sender_address = info.sender.clone();
 
   config(deps.storage).update(|mut state| -> Result<_, StdError> {
@@ -112,9 +124,9 @@ fn query_password(deps: Deps, password_key: String) -> StdResult<UserResp> {
   };
   Ok(resp)
 }
-fn query_count(deps: Deps) -> StdResult<CountResponse> {
+fn query_count(deps: Deps) -> StdResult<CountResp> {
   let state = config_read(deps.storage).load()?;
-  Ok(CountResponse { count: state.count })
+  Ok(CountResp { count: state.count })
 }
 /*fn query_count(deps: Deps) -> StdResult<TotalWeightResponse> {
   let weight = TOTAL.load(deps.storage)?;
@@ -148,12 +160,12 @@ mod tests {
 
     // it worked, let's query the state
     let res = query(deps.as_ref(), mock_env(), QueryMsg::GetCount {}).unwrap();
-    let value: CountResponse = from_binary(&res).unwrap();
+    let value: CountResp = from_binary(&res).unwrap();
     assert_eq!(17, value.count);
   }
 
   #[test]
-  fn test_increment() {
+  fn test_increment_decrement() {
     let mut deps = mock_dependencies_with_balance(&[Coin {
       denom: "token".to_string(),
       amount: Uint128::new(2),
@@ -177,14 +189,23 @@ mod tests {
         amount: Uint128::new(2),
       }],
     );
+    //--------== Increment
+    let exec_msg = ExecuteMsg::Increment { amt: 15 };
+    let _res = execute(deps.as_mut(), mock_env(), info.clone(), exec_msg).unwrap();
 
-    let exec_msg = ExecuteMsg::Increment {};
+    // check count value
+    let res = query(deps.as_ref(), mock_env(), QueryMsg::GetCount {}).unwrap();
+    let value: CountResp = from_binary(&res).unwrap();
+    assert_eq!(32, value.count);
+
+    //--------== Decrement
+    let exec_msg = ExecuteMsg::Decrement { amt: 9 };
     let _res = execute(deps.as_mut(), mock_env(), info, exec_msg).unwrap();
 
-    // should increase counter by 1
+    // check count value
     let res = query(deps.as_ref(), mock_env(), QueryMsg::GetCount {}).unwrap();
-    let value: CountResponse = from_binary(&res).unwrap();
-    assert_eq!(18, value.count);
+    let value: CountResp = from_binary(&res).unwrap();
+    assert_eq!(23, value.count);
   }
 
   #[test]
@@ -230,12 +251,11 @@ mod tests {
       }],
     );
     let exec_msg = ExecuteMsg::Reset { count: 5 };
-
     let _res = execute(deps.as_mut(), mock_env(), info, exec_msg).unwrap();
 
     // should now be 5
     let res = query(deps.as_ref(), mock_env(), QueryMsg::GetCount {}).unwrap();
-    let value: CountResponse = from_binary(&res).unwrap();
+    let value: CountResp = from_binary(&res).unwrap();
     assert_eq!(5, value.count);
   }
 

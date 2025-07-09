@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 //-----== Instantiate
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq, JsonSchema)]
 pub struct InstantiateMsg {
-  pub count: i32,
+  pub count: u64,
   //pub admin: String,
 }
 
@@ -13,9 +13,14 @@ pub struct InstantiateMsg {
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ExecuteMsg {
-  Increment {},
+  Increment {
+    amt: u64,
+  },
+  Decrement {
+    amt: u64,
+  },
   Reset {
-    count: i32,
+    count: u64,
   },
   StorePassword {
     password_key: String,
@@ -36,8 +41,8 @@ pub enum QueryMsg {
 //must have pub in fields!
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
-pub struct CountResponse {
-  pub count: i32,
+pub struct CountResp {
+  pub count: u64,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq, JsonSchema)]
