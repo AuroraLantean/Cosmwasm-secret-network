@@ -27,6 +27,7 @@ justfile
 slumber.yml
 db.sqlite
 secretjs/node_modules
+optimized-wasm
 contract.wasm*
 # MSVC Windows builds of rustc generate these, which store debugging information
 *.pdb

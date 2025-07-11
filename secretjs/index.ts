@@ -1,4 +1,4 @@
-import { ll } from "./env";
+import { contractCodeHash, contractCodeId, ll } from "./env";
 import {
 	secretDeploy,
 	secretExecute,
@@ -6,14 +6,12 @@ import {
 	secretQuery,
 } from "./secretjs";
 
-// To run this script: bun index CASE_NUMBER
-const selection: string = Bun.argv[2] || "";
-ll("selection =", selection);
+// To run this script: bun index caseId
+const caseId: string = Bun.argv[2] || "";
+ll("caseId =", caseId);
 
-//bun run index 999
-switch (selection) {
-	//mint0 = await makeMint(provider, payer, mintAuth0, tokenDpNum, "mint0");
-	case "999":
+switch (caseId) {
+	case "999": //bun run index 999
 		{
 			ll("new function");
 		}
@@ -27,24 +25,28 @@ switch (selection) {
 			await secretInstantiate(codeId, contractCodeHash, verbose);
 		}
 		break;
-	//execute
+	//secretInstantiate
 	case "1": //bun run index 1
 		{
 			const verbose = Boolean(Bun.argv[3]);
-			const password_key = "key123";
-			const password_value = "password456";
-
-			await secretExecute(password_key, password_value, verbose);
+			await secretInstantiate(contractCodeId, contractCodeHash, verbose);
+		}
+		break;
+	//execute
+	case "2": //bun run index 2 key pw
+		{
+			const password_key = Bun.argv[3] || "key123";
+			const password_value = Bun.argv[4] || "pw456";
+			await secretExecute(password_key, password_value);
 		}
 		break;
 	//query
-	case "2": //bun run index 2
+	case "3": //bun run index 3 key
 		{
 			const key = Bun.argv[3];
-			const verbose = Boolean(Bun.argv[4]);
-			await secretQuery(key, verbose);
+			await secretQuery(key);
 		}
 		break;
 	default:
-		ll("unexpected selection");
+		ll("unexpected caseId");
 }
