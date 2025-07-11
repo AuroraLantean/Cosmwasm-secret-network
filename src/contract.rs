@@ -1,8 +1,9 @@
 //use schemars::JsonSchema;
 //use std::fmt;
+use crate::error::ContractError;
 use crate::{
   //error::ContractError,
-  msg::{CountResp, ExecuteMsg, GreetResp, InstantiateMsg, QueryMsg, UserResp},
+  msg::{CountResp, ExecuteMsg, FlipResponse, GreetResp, InstantiateMsg, QueryMsg, UserResp},
   state::{ADDR_VOTE, State, USERS, User, config, config_read},
 };
 use cosmwasm_std::{
@@ -21,6 +22,7 @@ pub fn instantiate(
   let state = State {
     count: msg.count,
     owner: info.sender.clone(),
+    flip: msg.flip,
   };
   deps
     .api
@@ -41,7 +43,17 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
     ExecuteMsg::Increment { amt } => try_increment(deps, env, amt),
     ExecuteMsg::Decrement { amt } => try_decrement(deps, env, amt),
     ExecuteMsg::Reset { count } => try_reset(deps, env, info, count),
+    ExecuteMsg::Flip {} => try_flip(deps, env),
   }
+}
+pub fn try_flip(deps: DepsMut, env: Env) -> StdResult<Response> {
+  config(deps.storage).update(|mut state| -> Result<_, StdError> {
+    let coin_flip: Vec<u8> = env.block.random.unwrap().0;
+    state.flip = coin_flip;
+    Ok(state)
+  })?;
+  deps.api.debug("flipped!");
+  Ok(Response::default())
 }
 
 pub fn try_store_password(
@@ -106,8 +118,13 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
     Greet { name } => to_binary(&greet(deps, env, name)?),
     GetCount {} => to_binary(&query_count(deps)?),
     GetPassword { password_key } => to_binary(&query_password(deps, password_key)?),
+    GetFlip {} => to_binary(&query_flip(deps)?),
   }
 } //_msg: Empty ... an empty JSON
+fn query_flip(deps: Deps) -> StdResult<FlipResponse> {
+  let state = config_read(deps.storage).load()?;
+  Ok(FlipResponse { flip: state.flip })
+}
 fn greet(_deps: Deps, _env: Env, name: String) -> StdResult<GreetResp> {
   let resp = GreetResp {
     greet: format!("Hello {}", name), //"Hello World".to_owned(),
@@ -151,7 +168,10 @@ mod tests {
         amount: Uint128::new(1000),
       }],
     );
-    let init_msg = InstantiateMsg { count: 17 };
+    let init_msg = InstantiateMsg {
+      count: 17,
+      flip: vec![1, 2, 3],
+    };
 
     // we can just call .unwrap() to assert this was a success
     let res = instantiate(deps.as_mut(), mock_env(), info, init_msg).unwrap();
@@ -177,7 +197,10 @@ mod tests {
         amount: Uint128::new(1000),
       }],
     );
-    let init_msg = InstantiateMsg { count: 17 };
+    let init_msg = InstantiateMsg {
+      count: 17,
+      flip: vec![1, 2, 3],
+    };
 
     let _res = instantiate(deps.as_mut(), mock_env(), info, init_msg).unwrap();
 
@@ -221,7 +244,10 @@ mod tests {
         amount: Uint128::new(2),
       }],
     );
-    let init_msg = InstantiateMsg { count: 17 };
+    let init_msg = InstantiateMsg {
+      count: 17,
+      flip: vec![1, 2, 3],
+    };
 
     let _res = instantiate(deps.as_mut(), mock_env(), info, init_msg).unwrap();
 
@@ -272,7 +298,10 @@ mod tests {
         amount: Uint128::new(1000),
       }],
     );
-    let init_msg = InstantiateMsg { count: 0 }; //instantiate the contract
+    let init_msg = InstantiateMsg {
+      count: 0,
+      flip: vec![1, 2, 3],
+    }; //instantiate the contract
 
     let _res = instantiate(deps.as_mut(), mock_env(), info, init_msg).unwrap();
 
@@ -310,7 +339,10 @@ mod tests {
       deps.as_mut(),
       mock_env(),
       mock_info("addr0", &[]),
-      InstantiateMsg { count: 0 }, //Empty {},
+      InstantiateMsg {
+        count: 0,
+        flip: vec![1, 2, 3],
+      }, //Empty {},
     )
     .unwrap();
 

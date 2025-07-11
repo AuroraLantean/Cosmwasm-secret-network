@@ -2,12 +2,28 @@
 name = "cosmwasm_demo1"
 version = "0.1.0"
 edition = "2024"
+description = "Cosmos contract for Secret Network"
 
 # cdylib is required to create a proper web assembly binary, but such a library cannot be used as a dependency for other Rust crates - for now
 [lib]
 crate-type = ["cdylib", "rlib"]
 
+[profile.release]
+opt-level = 3
+debug = false
+rpath = false
+lto = true
+debug-assertions = false
+codegen-units = 1
+panic = 'abort'
+incremental = false
+overflow-checks = true
+
 [features]
+default = []
+# for quicker tests, cargo test --lib
+# for more explicit tests, cargo test --features=backtraces
+backtraces = ["cosmwasm-std/backtraces"]
 # use library feature to disable all instantiate/execute/query exports
 library = []
 

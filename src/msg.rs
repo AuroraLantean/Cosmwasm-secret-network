@@ -6,6 +6,7 @@ use serde::{Deserialize, Serialize};
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq, JsonSchema)]
 pub struct InstantiateMsg {
   pub count: u64,
+  pub flip: Vec<u8>,
   //pub admin: String,
 }
 
@@ -26,6 +27,7 @@ pub enum ExecuteMsg {
     password_key: String,
     password_value: String,
   },
+  Flip {},
 }
 
 //-----== Query
@@ -35,6 +37,7 @@ pub enum QueryMsg {
   Greet { name: String },
   GetCount {},
   GetPassword { password_key: String },
+  GetFlip {},
 }
 
 //-----== custom struct for each query response
@@ -54,4 +57,8 @@ pub struct UserResp {
 #[serde(rename_all = "snake_case")]
 pub struct GreetResp {
   pub greet: String,
+}
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq, Eq, JsonSchema)]
+pub struct FlipResponse {
+  pub flip: Vec<u8>,
 }

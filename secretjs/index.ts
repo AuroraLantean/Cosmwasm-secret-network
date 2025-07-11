@@ -33,18 +33,20 @@ switch (caseId) {
 		}
 		break;
 	//execute
-	case "2": //bun run index 2 key pw
+	case "2": //bun run index 2 funcName arg1 arg2
 		{
-			const password_key = Bun.argv[3] || "key123";
-			const password_value = Bun.argv[4] || "pw456";
-			await secretExecute(password_key, password_value);
+			const funcName = Bun.argv[3] || "flip";
+			const arg1 = Bun.argv[4] || "key123";
+			const arg2 = Bun.argv[5] || "pw456";
+			await secretExecute(funcName, arg1, arg2);
 		}
 		break;
 	//query
-	case "3": //bun run index 3 key
+	case "3": //bun run index 3 funcName arg1
 		{
-			const key = Bun.argv[3];
-			await secretQuery(key);
+			const funcName = Bun.argv[3] || "flip";
+			const arg1 = Bun.argv[4] || "key123";
+			await secretQuery(funcName, arg1);
 		}
 		break;
 	default:

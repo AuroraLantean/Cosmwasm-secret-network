@@ -3,11 +3,12 @@ use thiserror::Error;
 
 #[derive(Error, Debug, PartialEq)]
 pub enum ContractError {
+  // let thiserror implement From<StdError>
   #[error("{0}")]
   Std(#[from] StdError),
 
   #[error("Unauthorized")]
-  Unauthorized {},
+  Unauthorized {}, // when message sender != owner
 
   #[error("Custom Error val: {val:?}")]
   CustomError { val: String },

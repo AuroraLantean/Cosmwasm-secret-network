@@ -46,7 +46,7 @@ export const secretDeploy = async (verbose = false) => {
 
 	if (verbose) ll(tx);
 	const codeId = findTxnData(tx.arrayLog, "codeId");
-	ll(`CONTRACT_CODE_ID=${codeId}`);
+	ll(`CONTRACT_CODE_ID= ${codeId}`);
 	if (!codeId) {
 		throw new Error("codeId invalid");
 	}
@@ -55,7 +55,7 @@ export const secretDeploy = async (verbose = false) => {
 	const contractCodeHash = (
 		await client.query.compute.codeHashByCodeId({ code_id: codeId })
 	).code_hash;
-	ll(`CONTRACT_CODE_HASH=${contractCodeHash}`);
+	ll(`CONTRACT_CODE_HASH= ${contractCodeHash}`);
 	if (!contractCodeHash) {
 		throw new Error("contractCodeHash invalid");
 	}
@@ -97,7 +97,7 @@ export const secretInstantiate = async (
 			admin: wallet.address, // optional admin address that can perform code migrations
 			code_id: codeId,
 			code_hash: codeHash,
-			init_msg: { count: 0 }, //according to your InstantiateMsg
+			init_msg: { count: 0, flip: [42] }, //according to your InstantiateMsg
 			label: `demo contract ${Math.ceil(Math.random() * 10000)}`, //something unique
 			//init_funds: [], // optional
 		},
@@ -108,7 +108,7 @@ export const secretInstantiate = async (
 	if (verbose) ll(tx);
 
 	const contractAddress = findTxnData(tx.arrayLog, "addr");
-	ll(`CONTRACT_ADDRESS=${contractAddress}`);
+	ll(`CONTRACT_ADDRESS= ${contractAddress}`);
 	return contractAddress;
 };
 /*    init_msg: {
@@ -130,13 +130,12 @@ export const secretInstantiate = async (
  */
 
 export const secretExecute = async (
-	password_key: string,
-	password_value: string,
+	funcName: string,
+	arg1: string,
+	arg2: string,
 ) => {
-	ll("secretExecute");
-	if (!password_key) throw new Error("password_key invalid");
-	if (!password_value) throw new Error("password_value invalid");
-
+	ll(`secretExecute: 
+funcName=${funcName}, arg1: ${arg1}, arg2: ${arg2}`);
 	ll("contractAddress:", contractAddress);
 	if (!contractAddress) {
 		throw new Error("contractAddress invalid");
@@ -146,16 +145,25 @@ export const secretExecute = async (
 		throw new Error("contractCodeHash invalid");
 	}
 
+	let msg = {}; //all snake_case!
+	if (funcName === "flip") {
+		msg = { flip: {} };
+	} else if (funcName === "password") {
+		if (!arg1) throw new Error("password_key invalid");
+		if (!arg2) throw new Error("password_value invalid");
+		msg = {
+			store_password: {
+				password_key: arg1,
+				password_value: arg2,
+			},
+		};
+	}
+
 	const tx = await client.tx.compute.executeContract(
 		{
 			sender: wallet.address,
 			contract_address: contractAddress,
-			msg: {
-				store_password: {
-					password_key,
-					password_value,
-				},
-			}, //all snake_case!
+			msg, //all snake_case!
 			code_hash: contractCodeHash,
 		},
 		{ gasLimit: 100_000 },
@@ -163,20 +171,31 @@ export const secretExecute = async (
 	ll(tx);
 };
 
-export const secretQuery = async (key: string | undefined) => {
-	ll("secretQuery");
-	if (!key) {
-		ll("key:", key);
-		throw new Error("key invalid");
+export const secretQuery = async (
+	funcName: string,
+	arg1: string | undefined,
+) => {
+	ll(`secretQuery: 
+funcName=${funcName}, arg1: ${arg1}`);
+
+	let query = {}; //all snake_case!
+	if (funcName === "flip") {
+		query = {
+			get_flip: {},
+		};
+	} else if (funcName === "password") {
+		if (!arg1) throw new Error("key invalid");
+		query = {
+			get_password: {
+				password_key: arg1,
+			},
+		};
 	}
+
 	const my_query = await client.query.compute.queryContract({
 		contract_address: contractAddress,
 		code_hash: contractCodeHash,
-		query: {
-			get_password: {
-				password_key: key,
-			},
-		}, //all snake_case in query!
+		query, //all snake_case in query!
 	});
 	ll("value: ", my_query);
 };

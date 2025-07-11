@@ -13,6 +13,7 @@ pub static CONFIG_KEY: &[u8] = b"config";
 pub struct State {
   pub count: u64,
   pub owner: Addr,
+  pub flip: Vec<u8>,
 }
 
 //Singleton<State>: auto serializes or deserializes the State struct

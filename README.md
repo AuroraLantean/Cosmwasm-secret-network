@@ -26,10 +26,10 @@ Fix schemars to "0.8.22" due to secret-toolkit repo. See https://github.com/scrt
 ```
 ### Build The Contract
 ```
-	docker run --rm -v "$$(pwd)":/contract \
-		--mount type=volume,source="$$(basename "$$(pwd)")_cache",target=/contract/target \
-		--mount type=volume,source=registry_cache,target=/usr/local/cargo/registry \
-		ghcr.io/scrtlabs/secret-contract-optimizer:1.0.13
+docker run --rm -v "$$(pwd)":/contract \
+	--mount type=volume,source="$$(basename "$$(pwd)")_cache",target=/contract/target \
+	--mount type=volume,source=registry_cache,target=/usr/local/cargo/registry \
+	ghcr.io/scrtlabs/secret-contract-optimizer:1.0.13
 ```
 The “secret-contract-optimizer” is hosted here: https://github.com/orgs/scrtlabs/packages/container/package/secret-contract-optimizer
 
