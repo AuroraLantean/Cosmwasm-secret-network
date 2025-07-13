@@ -1,23 +1,9 @@
 import { type ArrayLog, SecretNetworkClient, Wallet } from "secretjs";
-import {
-	contractAddress,
-	contractCodeHash,
-	contractPath,
-	ll,
-	mnemonic,
-	secretNetworkId,
-	secretNetworkUrl,
-} from "./env";
+import { ll, mnemonic, secretNetworkId, secretNetworkUrl } from "./env";
 
-const wasmFilePath = contractPath;
 const wallet = new Wallet(mnemonic);
 //https://github.com/scrtlabs/secret.js?tab=readme-ov-file#wallet
 ll("loading wallet:", wallet.address, ", publicKey:", wallet.publicKey);
-
-const file = Bun.file(wasmFilePath); //absolute or relative path
-const contract_wasm = await file.bytes();
-//const contract_wasm = fs.readFileSync("./contract.wasm.gz") as Uint8Array;
-ll("after reading contract file");
 
 //SecretJs on signer client: https://github.com/scrtlabs/secret.js?tab=readme-ov-file#secretnetworkclient
 //URL: https://docs.scrt.network/secret-network-documentation/development/resources-api-contract-addresses/connecting-to-the-network
@@ -30,8 +16,16 @@ export const client = new SecretNetworkClient({
 
 //echo "testnets: Osmosis, Juno, Terra, or others"
 //https://docs.osmosis.zone/cosmwasm/testnet/cosmwasm-deployment/
-export const secretDeploy = async (verbose = false) => {
-	ll("secretDeploy()");
+export const secretDeploy = async (secretCtrtPath: string, verbose = false) => {
+	ll("secretDeploy()... secretCtrtPath:", secretCtrtPath);
+	if (!secretCtrtPath) {
+		throw new Error("secretCtrtPath invalid");
+	}
+	const file = Bun.file(secretCtrtPath); //absolute or relative path
+	const contract_wasm = await file.bytes();
+	//const contract_wasm = fs.readFileSync("./contract.wasm.gz") as Uint8Array;
+	ll("after reading contract file");
+
 	const tx = await client.tx.compute.storeCode(
 		{
 			sender: wallet.address,
@@ -46,7 +40,7 @@ export const secretDeploy = async (verbose = false) => {
 
 	if (verbose) ll(tx);
 	const codeId = findTxnData(tx.arrayLog, "codeId");
-	ll(`CONTRACT_CODE_ID= ${codeId}`);
+	ll(`SECRET_CONTRACT_CODE_ID= ${codeId}`);
 	if (!codeId) {
 		throw new Error("codeId invalid");
 	}
@@ -55,7 +49,7 @@ export const secretDeploy = async (verbose = false) => {
 	const contractCodeHash = (
 		await client.query.compute.codeHashByCodeId({ code_id: codeId })
 	).code_hash;
-	ll(`CONTRACT_CODE_HASH= ${contractCodeHash}`);
+	ll(`SECRET_CONTRACT_CODE_HASH= ${contractCodeHash}`);
 	if (!contractCodeHash) {
 		throw new Error("contractCodeHash invalid");
 	}
@@ -70,7 +64,8 @@ export const findTxnData = (
 	if (target === "addr") logkey = "contract_address";
 
 	if (!txArrayLog) {
-		throw new Error("txArrayLog invalid");
+		console.error("txArrayLog invalid");
+		return;
 	}
 	const codeIdObj = txArrayLog?.find(
 		(log) => log.type === "message" && log.key === logkey,
@@ -111,60 +106,122 @@ export const secretInstantiate = async (
 	ll(`CONTRACT_ADDRESS= ${contractAddress}`);
 	return contractAddress;
 };
-/*    init_msg: {
-      name: "Secret SCRT",
-      admin: myAddress,
-      symbol: "SSCRT",
-      decimals: 6,
-      initial_balances: [{ address: myAddress, amount: "1" }],
-      prng_seed: "eW8=",
-      config: {
-        public_total_supply: true,
-        enable_deposit: true,
-        enable_redeem: true,
-        enable_mint: false,
-        enable_burn: false,
-      },
-      supported_denoms: ["uscrt"],
-    },
- */
+
+//https://github.com/SecretFoundation/snip20-reference-impl/tree/master/node
+export const secretInstantiateSNIP20 = async (
+	codeId: string | undefined,
+	codeHash: string | undefined,
+	verbose = false,
+) => {
+	ll("secretInstantiateSNIP20()");
+	if (!codeId || !codeHash) {
+		ll("codeId:", codeId);
+		ll("codeHash:", codeHash);
+		throw new Error("input invalid");
+	}
+
+	const config = {
+		//public_total_supply: true,
+		/// Indicates whether deposit functionality should be enabled
+		/// default: False
+		enable_deposit: true,
+		/// Indicates whether redeem functionality should be enabled
+		/// default: False
+		enable_redeem: true,
+		/// Indicates whether mint functionality should be enabled
+		/// default: False
+		enable_mint: true,
+		/// Indicates whether burn functionality should be enabled
+		/// default: False
+		enable_burn: true,
+		/// Indicated whether an admin can modify supported denoms
+		/// default: False
+		can_modify_denoms: true,
+	};
+	const init_msg = {
+		name: "Secret Dragon",
+		symbol: "sDRAG",
+		decimals: 6, //SCRT has 6 decimals
+		prng_seed: Buffer.from("Something really random").toString("base64"),
+		admin: wallet.address,
+		initial_balances: [
+			{
+				address: wallet.address,
+				amount: "1000000000",
+			},
+		],
+		config,
+		// supported_denoms: ["uscrt"],
+	};
+
+	const tx = await client.tx.compute.instantiateContract(
+		{
+			sender: wallet.address,
+			admin: wallet.address, // optional admin address that can perform code migrations
+			code_id: codeId,
+			code_hash: codeHash,
+			init_msg, //according to the InstantiateMsg
+			label: `secret Dragon coin ${Math.ceil(Math.random() * 10000)}`, //something unique
+		},
+		{
+			gasLimit: 400_000,
+		},
+	);
+	if (verbose) ll(tx);
+
+	const secretCoinAddr = findTxnData(tx.arrayLog, "addr");
+	ll(`SECRET_COIN_ADDRESS= ${secretCoinAddr}`);
+	return secretCoinAddr;
+};
 
 export const secretExecute = async (
+	ctrtAddr: string,
+	codeHash: string,
 	funcName: string,
 	arg1: string,
 	arg2: string,
 ) => {
 	ll(`secretExecute: 
 funcName=${funcName}, arg1: ${arg1}, arg2: ${arg2}`);
-	ll("contractAddress:", contractAddress);
-	if (!contractAddress) {
-		throw new Error("contractAddress invalid");
+	ll("ctrtAddr:", ctrtAddr);
+	if (!ctrtAddr) {
+		console.error("ctrtAddr invalid");
+		return;
 	}
-	ll("contractCodeHash:", contractCodeHash);
-	if (!contractCodeHash) {
-		throw new Error("contractCodeHash invalid");
+	ll("codeHash:", codeHash);
+	if (!codeHash) {
+		console.error("codeHash invalid");
+		return;
 	}
-
 	let msg = {}; //all snake_case!
 	if (funcName === "flip") {
 		msg = { flip: {} };
 	} else if (funcName === "password") {
-		if (!arg1) throw new Error("password_key invalid");
-		if (!arg2) throw new Error("password_value invalid");
+		if (!arg1) {
+			console.error("password_key invalid");
+			return;
+		}
+		if (!arg2) {
+			console.error("password_value invalid");
+			return;
+		}
 		msg = {
 			store_password: {
 				password_key: arg1,
 				password_value: arg2,
 			},
 		};
+	} else {
+		console.error("funcName not valid");
+		return;
 	}
 
 	const tx = await client.tx.compute.executeContract(
 		{
 			sender: wallet.address,
-			contract_address: contractAddress,
+			contract_address: ctrtAddr,
 			msg, //all snake_case!
-			code_hash: contractCodeHash,
+			code_hash: codeHash,
 		},
 		{ gasLimit: 100_000 },
 	);
@@ -172,6 +229,8 @@ funcName=${funcName}, arg1: ${arg1}, arg2: ${arg2}`);
 };
 
 export const secretQuery = async (
+	ctrtAddr: string,
+	codeHash: string,
 	funcName: string,
 	arg1: string | undefined,
 ) => {
@@ -184,18 +243,28 @@ funcName=${funcName}, arg1: ${arg1}`);
 			get_flip: {},
 		};
 	} else if (funcName === "password") {
-		if (!arg1) throw new Error("key invalid");
+		if (!arg1) {
+			console.error("key invalid");
+			return;
+		}
 		query = {
 			get_password: {
 				password_key: arg1,
 			},
 		};
+	} else if (funcName === "token_info") {
+		query = {
+			token_info: {},
+		};
+	} else {
+		console.error("funcName not valid");
+		return;
 	}
 
-	const my_query = await client.query.compute.queryContract({
-		contract_address: contractAddress,
-		code_hash: contractCodeHash,
+	const query_result = await client.query.compute.queryContract({
+		contract_address: ctrtAddr,
+		code_hash: codeHash,
 		query, //all snake_case in query!
 	});
-	ll("value: ", my_query);
+	ll("query_result: ", query_result);
 };

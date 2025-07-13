@@ -21,13 +21,15 @@ if (!secretNetworkUrl) {
 	throw new Error("secretNetworkUrl invalid");
 }
 export const secretNetworkId = Bun.env.SECRET_NETWORK_ID;
-if (!mnemonic) {
+if (!secretNetworkId) {
 	throw new Error("secretNetworkId invalid");
 }
-export const contractPath = Bun.env.CONTRACT_PATH;
-if (!contractPath) {
-	throw new Error("contractPath invalid");
-}
-export const contractCodeId = Bun.env.CONTRACT_CODE_ID;
-export const contractCodeHash = Bun.env.CONTRACT_CODE_HASH;
-export const contractAddress = Bun.env.CONTRACT_ADDRESS;
+export const sectetDemoCtrtPath = Bun.env.SECRET_DEMO_CTRT_PATH || "";
+export const secretDragonCoinPath = Bun.env.SECRET_DRAGON_COIN_PATH || "";
+
+export const secretCtrtCodeId = Bun.env.SECRET_CONTRACT_CODE_ID || "";
+export const secretCtrtCodeHash = Bun.env.SECRET_CONTRACT_CODE_HASH || "";
+export const secretCtrtAddress = Bun.env.SECRET_CONTRACT_ADDRESS || "";
+
+export const secretCoinCodeHash = Bun.env.SECRET_COIN_CODE_HASH || "";
+export const secretCoinAddress = Bun.env.SECTET_COIN_ADDR || "";
