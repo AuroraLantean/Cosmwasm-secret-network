@@ -43,6 +43,7 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
     } => try_add_user(deps, env, info, name, password, balance),
     ExecuteMsg::Deposit { amount } => try_deposit(deps, env, info, amount),
     ExecuteMsg::Increment { amt } => try_increment(deps, env, amt),
+    ExecuteMsg::RemoveUser { addr } => try_remove_user(deps, env, info, addr),
     ExecuteMsg::Decrement { amt } => try_decrement(deps, env, amt),
     ExecuteMsg::Reset { count } => try_reset(deps, env, info, count),
     ExecuteMsg::Flip {} => try_flip(deps, env),
@@ -58,6 +59,28 @@ pub fn try_flip(deps: DepsMut, env: Env) -> StdResult<Response> {
   Ok(Response::default())
 }
 
+pub fn try_remove_user(
+  deps: DepsMut,
+  _env: Env,
+  info: MessageInfo,
+  addr: Addr,
+) -> StdResult<Response> {
+  deps.api.debug("try_remove_user");
+  let sender = info.sender.clone();
+
+  let state = config(deps.storage).load()?;
+  if sender != state.owner {
+    return Err(StdError::generic_err("Only owner"));
+  };
+
+  let _user = USERS
+    .get(deps.storage, &addr)
+    .ok_or(StdError::generic_err("name incorrect"))?;
+
+  USERS.remove(deps.storage, &addr)?;
+  deps.api.debug("success");
+  Ok(Response::default())
+}
 pub fn try_deposit(
   deps: DepsMut,
   _env: Env,
@@ -74,7 +97,7 @@ pub fn try_deposit(
 
   user.balance += amount;
   USERS.insert(deps.storage, &sender, &user)?;
-  deps.api.debug("password stored successfully");
+  deps.api.debug("success");
   Ok(Response::default())
 }
 
@@ -97,7 +120,7 @@ pub fn try_add_user(
     updated_at: env.block.time.seconds(),
   };
   USERS.insert(deps.storage, &sender, &user)?;
-  deps.api.debug("password stored successfully");
+  deps.api.debug("success");
   Ok(Response::default())
 }
 
@@ -122,10 +145,10 @@ pub fn try_decrement(deps: DepsMut, _env: Env, amt: u64) -> StdResult<Response> 
 }
 
 pub fn try_reset(deps: DepsMut, _env: Env, info: MessageInfo, count: u64) -> StdResult<Response> {
-  let sender_address = info.sender.clone();
+  let sender = info.sender.clone();
 
   config(deps.storage).update(|mut state| -> Result<_, StdError> {
-    if sender_address != state.owner {
+    if sender != state.owner {
       return Err(StdError::generic_err("Only the owner can reset count"));
     };
     state.count = count;
@@ -326,7 +349,7 @@ mod tests {
       denom: "token".to_owned(),
       amount: Uint128::new(2),
     }]);
-    let info = mock_info(
+    let info_owner = mock_info(
       "owner",
       &[Coin {
         denom: "token".to_owned(),
@@ -338,7 +361,7 @@ mod tests {
       flip: vec![1, 2, 3],
     }; //instantiate the contract
 
-    let _res = instantiate(deps.as_mut(), mock_env(), info, init_msg).unwrap();
+    let _res = instantiate(deps.as_mut(), mock_env(), info_owner.clone(), init_msg).unwrap();
 
     //User1 stores password
     let user1 = Addr::unchecked("user1");
@@ -372,13 +395,30 @@ mod tests {
     //--------== update balance
     let amount = 15;
     let msg = ExecuteMsg::Deposit { amount };
-    let _res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
+    let _res = execute(deps.as_mut(), mock_env(), info.clone(), msg).unwrap();
 
-    let msg = QueryMsg::GetUser { addr: user1 };
+    let msg = QueryMsg::GetUser {
+      addr: user1.clone(),
+    };
     let res: Binary = query(deps.as_ref(), mock_env(), msg).unwrap();
     let user: UserResp = from_binary(&res).unwrap();
     println!("Queried user: {:?}", user);
     assert_eq!(balance + amount, user.balance);
+
+    //--------== Remove User
+    let msg = ExecuteMsg::RemoveUser {
+      addr: user1.clone(),
+    };
+    let _res = execute(deps.as_mut(), mock_env(), info_owner.clone(), msg).unwrap();
+
+    let msg = QueryMsg::GetUser {
+      addr: user1.clone(),
+    };
+    let res = query(deps.as_ref(), mock_env(), msg);
+    match res {
+      Err(StdError::GenericErr { .. }) => {}
+      _ => panic!("Must return unauthorized error"),
+    }
   }
 
   #[test]

@@ -32,6 +32,9 @@ pub enum ExecuteMsg {
   Deposit {
     amount: u64,
   },
+  RemoveUser {
+    addr: Addr,
+  },
   Flip {},
 }
 
