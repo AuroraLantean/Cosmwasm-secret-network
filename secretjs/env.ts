@@ -33,3 +33,6 @@ export const secretCtrtAddress = Bun.env.SECRET_CONTRACT_ADDRESS || "";
 
 export const secretCoinCodeHash = Bun.env.SECRET_COIN_CODE_HASH || "";
 export const secretCoinAddress = Bun.env.SECTET_COIN_ADDR || "";
+
+export const wallet1vk = Bun.env.VIEWINGKEY1 || "";
+export const wallet2vk = Bun.env.VIEWINGKEY2 || "";

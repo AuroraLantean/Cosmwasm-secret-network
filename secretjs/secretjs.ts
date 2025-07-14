@@ -1,9 +1,17 @@
 import { type ArrayLog, SecretNetworkClient, Wallet } from "secretjs";
-import { ll, mnemonic, secretNetworkId, secretNetworkUrl } from "./env";
+import {
+	ll,
+	mnemonic,
+	secretNetworkId,
+	secretNetworkUrl,
+	wallet1vk,
+	wallet2vk,
+} from "./env";
 
 const wallet = new Wallet(mnemonic);
 //https://github.com/scrtlabs/secret.js?tab=readme-ov-file#wallet
-ll("loading wallet:", wallet.address, ", publicKey:", wallet.publicKey);
+ll("loading wallet:", wallet.address);
+//"publicKey:", wallet.publicKey);
 
 //SecretJs on signer client: https://github.com/scrtlabs/secret.js?tab=readme-ov-file#secretnetworkclient
 //URL: https://docs.scrt.network/secret-network-documentation/development/resources-api-contract-addresses/connecting-to-the-network
@@ -255,6 +263,30 @@ funcName=${funcName}, arg1: ${arg1}`);
 	} else if (funcName === "token_info") {
 		query = {
 			token_info: {},
+		};
+	} else if (funcName === "balance") {
+		let viewingkey = "";
+		if (!arg1) {
+			console.error("arg1 invalid");
+			return;
+		} else if (arg1 === "vk1") {
+			viewingkey = wallet1vk;
+		} else if (arg1 === "vk2") {
+			viewingkey = wallet2vk;
+		} else {
+			console.error("viewing key invalid");
+			return;
+		}
+		ll("viewingkey:", viewingkey);
+		if (!viewingkey) {
+			console.error("viewingkey invalid");
+			return;
+		}
+		query = {
+			balance: {
+				address: wallet.address,
+				key: viewingkey,
+			},
 		};
 	} else {
 		console.error("funcName not valid");

@@ -125,7 +125,9 @@ fn query_flip(deps: Deps) -> StdResult<FlipResponse> {
   let state = config_read(deps.storage).load()?;
   Ok(FlipResponse { flip: state.flip })
 }
-fn greet(_deps: Deps, _env: Env, name: String) -> StdResult<GreetResp> {
+fn greet(deps: Deps, env: Env, name: String) -> StdResult<GreetResp> {
+  let str = format!("greet() at time:{}", env.block.time.seconds());
+  deps.api.debug(&str);
   let resp = GreetResp {
     greet: format!("Hello {}", name), //"Hello World".to_owned(),
   };
@@ -154,10 +156,15 @@ fn query_count(deps: Deps) -> StdResult<CountResp> {
 #[cfg(test)]
 mod tests {
   use super::*;
-  use cosmwasm_std::testing::*;
-  use cosmwasm_std::{Api, Coin, StdError, StdResult, Uint128, from_binary};
+  use cosmwasm_std::{Coin, StdError, StdResult, Uint128, from_binary};
+  use cosmwasm_std::{Timestamp, testing::*};
   use secret_toolkit::storage::{Item, Keymap}; //https://github.com/scrtlabs/secret-toolkit/tree/master/packages/storage
 
+  fn set_time(sec_since_epoc: u64) -> Env {
+    let mut env = mock_env();
+    env.block.time = Timestamp::from_nanos(sec_since_epoc * 1000000000);
+    env
+  }
   #[test]
   fn test_query_count() {
     let mut deps = mock_dependencies();
@@ -355,5 +362,8 @@ mod tests {
         greet: format!("Hello {}", name)
       }
     );
+
+    let env = set_time(1752489600);
+    let resp = greet(deps.as_ref(), env, name.clone()).unwrap();
   }
 }

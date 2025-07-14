@@ -21,13 +21,13 @@ const caseId: string = Bun.argv[2] || "";
 ll("caseId =", caseId);
 
 switch (caseId) {
-	case "999": //bun run index 999
+	case "0": //bun run index 0
 		{
 			ll("new function");
 		}
 		break;
 	//deploy
-	case "0": //bun run index 0
+	case "1": //bun run index 1
 		{
 			const verbose = Boolean(Bun.argv[3]);
 			const secretCtrtPath = sectetDemoCtrtPath;
@@ -35,19 +35,18 @@ switch (caseId) {
 				secretCtrtPath,
 				verbose,
 			);
-
 			await secretInstantiate(codeId, contractCodeHash, verbose);
 		}
 		break;
 	//secretInstantiate
-	case "1": //bun run index 1
+	case "2": //bun run index 2
 		{
 			const verbose = Boolean(Bun.argv[3]);
 			await secretInstantiate(secretCtrtCodeId, secretCtrtCodeHash, verbose);
 		}
 		break;
 	//execute
-	case "2": //bun run index 2 funcName arg1 arg2
+	case "3": //bun run index 3 funcName arg1 arg2
 		{
 			const funcName = Bun.argv[3] || "flip";
 			const arg1 = Bun.argv[4] || "key123";
@@ -62,7 +61,7 @@ switch (caseId) {
 		}
 		break;
 	//query
-	case "3": //bun run index 3 funcName arg1
+	case "4": //bun run index 4 funcName arg1
 		{
 			const funcName = Bun.argv[3] || "flip";
 			const arg1 = Bun.argv[4] || "key123";
@@ -71,7 +70,7 @@ switch (caseId) {
 		break;
 
 	//deploy secret token
-	case "20": //bun run index 20
+	case "21": //bun run index 21
 		{
 			const verbose = Boolean(Bun.argv[3]);
 			const secretCtrtPath = secretDragonCoinPath;
@@ -83,9 +82,9 @@ switch (caseId) {
 		}
 		break;
 	//query secret coin
-	case "21": //bun run index 21 funcName arg1
+	case "22": //bun run index 22 funcName arg1
 		{
-			const funcName = "token_info";
+			const funcName = Bun.argv[3] || ""; //token_info, balance + vk1;
 			const arg1 = Bun.argv[4] || "";
 			await secretQuery(secretCoinAddress, secretCoinCodeHash, funcName, arg1);
 		}
