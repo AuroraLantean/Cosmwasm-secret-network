@@ -25,12 +25,15 @@ pub fn config_read(storage: &dyn Storage) -> ReadonlySingleton<State> {
 }
 
 //---------== KeyMap
-pub static USERS: Keymap<String, User> = Keymap::new(b"password");
+pub static USERS: Keymap<Addr, User> = Keymap::new(b"password");
 
 pub static ADDR_VOTE: Keymap<Addr, User> =
   KeymapBuilder::new(b"page_vote").with_page_size(13).build();
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq, JsonSchema)]
 pub struct User {
+  pub name: String,
   pub password: String,
+  pub balance: u64,
+  pub updated_at: u64,
 }

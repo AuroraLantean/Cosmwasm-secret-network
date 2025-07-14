@@ -36,10 +36,12 @@ pub fn instantiate(
 pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> StdResult<Response>
 /*Result<Response<Empty>, ContractError>*/ {
   match msg {
-    ExecuteMsg::StorePassword {
-      password_key,
-      password_value,
-    } => try_store_password(deps, env, info, password_key, password_value),
+    ExecuteMsg::AddUser {
+      name,
+      password,
+      balance,
+    } => try_add_user(deps, env, info, name, password, balance),
+    ExecuteMsg::Deposit { amount } => try_deposit(deps, env, info, amount),
     ExecuteMsg::Increment { amt } => try_increment(deps, env, amt),
     ExecuteMsg::Decrement { amt } => try_decrement(deps, env, amt),
     ExecuteMsg::Reset { count } => try_reset(deps, env, info, count),
@@ -56,22 +58,45 @@ pub fn try_flip(deps: DepsMut, env: Env) -> StdResult<Response> {
   Ok(Response::default())
 }
 
-pub fn try_store_password(
+pub fn try_deposit(
   deps: DepsMut,
   _env: Env,
   info: MessageInfo,
-  password_key: String,
-  password_value: String,
+  amount: u64,
+) -> StdResult<Response> /*Result<Response, ContractError>*/
+{
+  deps.api.debug("try_deposit");
+  let sender = info.sender.clone();
+
+  let mut user = USERS
+    .get(deps.storage, &sender)
+    .ok_or(StdError::generic_err("name incorrect"))?;
+
+  user.balance += amount;
+  USERS.insert(deps.storage, &sender, &user)?;
+  deps.api.debug("password stored successfully");
+  Ok(Response::default())
+}
+
+pub fn try_add_user(
+  deps: DepsMut,
+  env: Env,
+  info: MessageInfo,
+  name: String,
+  password: String,
+  balance: u64,
 ) -> StdResult<Response> /*Result<Response, ContractError>*/ {
-  deps.api.debug("try_store_password");
+  deps.api.debug("try_add_user");
   let sender: Addr = info.sender;
   deps.api.debug(sender.as_str());
 
-  let password = User {
-    password: password_value.clone(),
+  let user = User {
+    name,
+    password: password.clone(),
+    balance,
+    updated_at: env.block.time.seconds(),
   };
-  //ADDR_VOTE.insert(deps.storage, &sender, &password)?;
-  USERS.insert(deps.storage, &password_key, &password)?;
+  USERS.insert(deps.storage, &sender, &user)?;
   deps.api.debug("password stored successfully");
   Ok(Response::default())
 }
@@ -117,7 +142,7 @@ pub fn query(deps: Deps, env: Env, msg: QueryMsg) -> StdResult<Binary> {
   match msg {
     Greet { name } => to_binary(&greet(deps, env, name)?),
     GetCount {} => to_binary(&query_count(deps)?),
-    GetPassword { password_key } => to_binary(&query_password(deps, password_key)?),
+    GetUser { addr } => to_binary(&query_user(deps, addr)?),
     GetFlip {} => to_binary(&query_flip(deps)?),
   }
 } //_msg: Empty ... an empty JSON
@@ -133,13 +158,16 @@ fn greet(deps: Deps, env: Env, name: String) -> StdResult<GreetResp> {
   };
   Ok(resp)
 }
-fn query_password(deps: Deps, password_key: String) -> StdResult<UserResp> {
+fn query_user(deps: Deps, addr: Addr) -> StdResult<UserResp> {
   let user = USERS
-    .get(deps.storage, &password_key)
-    .ok_or(StdError::generic_err("password_key incorrect"))?;
+    .get(deps.storage, &addr)
+    .ok_or(StdError::generic_err("name incorrect"))?;
 
   let resp = UserResp {
+    name: user.name,
     password: user.password,
+    balance: user.balance,
+    updated_at: user.updated_at,
   };
   Ok(resp)
 }
@@ -293,7 +321,7 @@ mod tests {
   }
 
   #[test]
-  fn store_password() {
+  fn add_user() {
     let mut deps = mock_dependencies_with_balance(&[Coin {
       denom: "token".to_owned(),
       amount: Uint128::new(2),
@@ -313,6 +341,7 @@ mod tests {
     let _res = instantiate(deps.as_mut(), mock_env(), info, init_msg).unwrap();
 
     //User1 stores password
+    let user1 = Addr::unchecked("user1");
     let info = mock_info(
       "user1",
       &[Coin {
@@ -321,20 +350,35 @@ mod tests {
       }],
     );
     let password1 = "pw1".to_owned();
-    let msg = ExecuteMsg::StorePassword {
-      password_key: "user1".to_owned(),
-      password_value: password1.clone(),
+    let balance = 122;
+    let msg = ExecuteMsg::AddUser {
+      name: "user1".to_owned(),
+      password: password1.clone(),
+      balance,
     };
-    let _res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
+    let _res = execute(deps.as_mut(), mock_env(), info.clone(), msg).unwrap();
 
-    //read password
-    let msg = QueryMsg::GetPassword {
-      password_key: "user1".to_owned(),
+    //read user
+    let msg = QueryMsg::GetUser {
+      addr: user1.clone(),
     };
     let res: Binary = query(deps.as_ref(), mock_env(), msg).unwrap();
     let user: UserResp = from_binary(&res).unwrap();
-    println!("Queried password: {}", user.password);
+    println!("Queried user: {:?}", user);
+    assert_eq!("user1".to_owned(), user.name);
     assert_eq!(password1, user.password);
+    assert_eq!(balance, user.balance);
+
+    //--------== update balance
+    let amount = 15;
+    let msg = ExecuteMsg::Deposit { amount };
+    let _res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
+
+    let msg = QueryMsg::GetUser { addr: user1 };
+    let res: Binary = query(deps.as_ref(), mock_env(), msg).unwrap();
+    let user: UserResp = from_binary(&res).unwrap();
+    println!("Queried user: {:?}", user);
+    assert_eq!(balance + amount, user.balance);
   }
 
   #[test]

@@ -1,3 +1,4 @@
+use cosmwasm_std::Addr;
 //inputs
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -23,9 +24,13 @@ pub enum ExecuteMsg {
   Reset {
     count: u64,
   },
-  StorePassword {
-    password_key: String,
-    password_value: String,
+  AddUser {
+    name: String,
+    password: String,
+    balance: u64,
+  },
+  Deposit {
+    amount: u64,
   },
   Flip {},
 }
@@ -36,7 +41,7 @@ pub enum ExecuteMsg {
 pub enum QueryMsg {
   Greet { name: String },
   GetCount {},
-  GetPassword { password_key: String },
+  GetUser { addr: Addr },
   GetFlip {},
 }
 
@@ -51,7 +56,10 @@ pub struct CountResp {
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub struct UserResp {
+  pub name: String,
   pub password: String,
+  pub balance: u64,
+  pub updated_at: u64,
 }
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
