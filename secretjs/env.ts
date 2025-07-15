@@ -2,7 +2,7 @@ declare module "bun" {
 	interface Env {
 		SECRET0: string;
 		MNEMONIC: string;
-		SECRET_NETWORK_URL: string;
+		SECRET_NETWORK_LCD: string;
 		SECRET_NETWORK_ID: string;
 		CONTRACT_PATH: string;
 		CONTRACT_CODE_ID: string;
@@ -16,9 +16,9 @@ export const mnemonic = Bun.env.MNEMONIC;
 if (!mnemonic) {
 	throw new Error("mnemonic invalid");
 }
-export const secretNetworkUrl = Bun.env.SECRET_NETWORK_URL;
-if (!secretNetworkUrl) {
-	throw new Error("secretNetworkUrl invalid");
+export const secretNetworkLcd = Bun.env.SECRET_NETWORK_LCD;
+if (!secretNetworkLcd) {
+	throw new Error("secretNetworkLcd invalid");
 }
 export const secretNetworkId = Bun.env.SECRET_NETWORK_ID;
 if (!secretNetworkId) {

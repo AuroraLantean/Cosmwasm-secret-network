@@ -36,6 +36,10 @@ pub enum ExecuteMsg {
     addr: Addr,
   },
   Flip {},
+  SendSCRT {
+    dest: Addr,
+    amount: u128,
+  },
 }
 
 //-----== Query

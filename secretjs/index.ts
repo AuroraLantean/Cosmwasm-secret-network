@@ -89,6 +89,18 @@ switch (caseId) {
 			await secretQuery(secretCoinAddress, secretCoinCodeHash, funcName, arg1);
 		}
 		break;
+	// send SCRT
+	case "31": //bun run index 31
+		{
+			const verbose = Boolean(Bun.argv[3]);
+			const secretCtrtPath = secretDragonCoinPath;
+			const { codeId, contractCodeHash } = await secretDeploy(
+				secretCtrtPath,
+				verbose,
+			);
+			await secretInstantiateSNIP20(codeId, contractCodeHash, verbose);
+		}
+		break;
 	default:
 		ll("unexpected caseId");
 }

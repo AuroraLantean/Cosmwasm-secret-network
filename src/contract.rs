@@ -1,14 +1,13 @@
 //use schemars::JsonSchema;
 //use std::fmt;
-use crate::error::ContractError;
 use crate::{
-  //error::ContractError,
+  error::ContractError,
   msg::{CountResp, ExecuteMsg, FlipResponse, GreetResp, InstantiateMsg, QueryMsg, UserResp},
   state::{ADDR_VOTE, State, USERS, User, config, config_read},
 };
 use cosmwasm_std::{
-  Addr, Binary, Deps, DepsMut, Empty, Env, MessageInfo, Response, StdError, StdResult, entry_point,
-  to_binary,
+  Addr, BankMsg, Binary, Coin, CosmosMsg, Deps, DepsMut, Empty, Env, MessageInfo, Response,
+  StdError, StdResult, Uint128, entry_point, to_binary,
 }; //ensure, ensure_ne, BankMsg, DepsMut
 
 //#[cfg_attr(not(feature = "library"), entry_point)]
@@ -47,7 +46,20 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
     ExecuteMsg::Decrement { amt } => try_decrement(deps, env, amt),
     ExecuteMsg::Reset { count } => try_reset(deps, env, info, count),
     ExecuteMsg::Flip {} => try_flip(deps, env),
+    ExecuteMsg::SendSCRT { dest, amount } => try_send_scrt(info, dest, amount),
   }
+}
+pub fn try_send_scrt(_info: MessageInfo, dest: Addr, amount: u128) -> StdResult<Response> {
+  let coins_to_send: Vec<Coin> = vec![Coin {
+    denom: "uscrt".to_string(),
+    amount: Uint128::from(amount),
+  }];
+  let message = CosmosMsg::Bank(BankMsg::Send {
+    to_address: dest.into_string(),
+    amount: coins_to_send,
+  });
+  let res = Response::new().add_message(message);
+  Ok(res)
 }
 pub fn try_flip(deps: DepsMut, env: Env) -> StdResult<Response> {
   config(deps.storage).update(|mut state| -> Result<_, StdError> {
@@ -68,7 +80,7 @@ pub fn try_remove_user(
   deps.api.debug("try_remove_user");
   let sender = info.sender.clone();
 
-  let state = config(deps.storage).load()?;
+  let state = config_read(deps.storage).load()?;
   if sender != state.owner {
     return Err(StdError::generic_err("Only owner"));
   };
@@ -198,10 +210,6 @@ fn query_count(deps: Deps) -> StdResult<CountResp> {
   let state = config_read(deps.storage).load()?;
   Ok(CountResp { count: state.count })
 }
-/*fn query_count(deps: Deps) -> StdResult<TotalWeightResponse> {
-  let weight = TOTAL.load(deps.storage)?;
-  Ok(TotalWeightResponse { weight })
-}*/
 
 // cargo test -- --nocapture
 #[cfg(test)]

@@ -3,7 +3,7 @@ import {
 	ll,
 	mnemonic,
 	secretNetworkId,
-	secretNetworkUrl,
+	secretNetworkLcd,
 	wallet1vk,
 	wallet2vk,
 } from "./env";
@@ -17,7 +17,7 @@ ll("loading wallet:", wallet.address);
 //URL: https://docs.scrt.network/secret-network-documentation/development/resources-api-contract-addresses/connecting-to-the-network
 export const client = new SecretNetworkClient({
 	chainId: secretNetworkId,
-	url: secretNetworkUrl,
+	url: secretNetworkLcd,
 	wallet: wallet,
 	walletAddress: wallet.address,
 });
@@ -129,6 +129,7 @@ export const secretInstantiateSNIP20 = async (
 	}
 
 	const config = {
+		/// Indicates whether the total supply is public or should be kept secret.
 		//public_total_supply: true,
 		/// Indicates whether deposit functionality should be enabled
 		/// default: False
@@ -219,21 +220,41 @@ funcName=${funcName}, arg1: ${arg1}, arg2: ${arg2}`);
 				password_value: arg2,
 			},
 		};
+	} else if (funcName === "transfer_snip20") {
+		if (!arg1) {
+			console.error("arg1 invalid");
+			return;
+		}
+		if (!arg2) {
+			console.error("arg2 invalid");
+			return;
+		}
+		//Contract - module call
+		msg = {
+			transfer: {
+				owner: wallet.address,
+				amount: arg1,
+				recipient: arg2,
+			},
+		};
 	} else {
 		console.error("funcName not valid");
 		return;
 	}
-
-	const tx = await client.tx.compute.executeContract(
-		{
-			sender: wallet.address,
-			contract_address: ctrtAddr,
-			msg, //all snake_case!
-			code_hash: codeHash,
-		},
-		{ gasLimit: 100_000 },
-	);
-	ll(tx);
+	try {
+		const tx = await client.tx.compute.executeContract(
+			{
+				sender: wallet.address,
+				contract_address: ctrtAddr,
+				msg, //all snake_case!
+				code_hash: codeHash,
+			},
+			{ gasLimit: 100_000 },
+		);
+		ll(tx);
+	} catch (error) {
+		ll("txn failed. error:", error);
+	}
 };
 
 export const secretQuery = async (

@@ -1,7 +1,6 @@
-# Cosmwasm Demo1
+# Cosmwasm Secret Network
 
-## Secret Network
-### Installation
+## Installation
 https://docs.scrt.network/secret-network-documentation/development/readme-1/setting-up-your-environment
 - Install Rust
 - Add WASM build target
@@ -20,11 +19,11 @@ rustup target add wasm32-unknown-unknown
 
 Fix schemars to "0.8.22" due to secret-toolkit repo. See https://github.com/scrtlabs/secret-toolkit/blob/master/Cargo.toml
 
-### Test The Contract
+## Test The Contract
 ```
   cargo test -- --nocapture
 ```
-### Build The Contract
+## Build The Contract
 ```
 docker run --rm -v "$$(pwd)":/contract \
 	--mount type=volume,source="$$(basename "$$(pwd)")_cache",target=/contract/target \
@@ -33,7 +32,7 @@ docker run --rm -v "$$(pwd)":/contract \
 ```
 The “secret-contract-optimizer” is hosted here: https://github.com/orgs/scrtlabs/packages/container/package/secret-contract-optimizer
 
-### Frontend
+## Frontend
 Go to `secretjs` folder
 Install JS packages:
 ```

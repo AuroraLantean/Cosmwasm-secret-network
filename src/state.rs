@@ -4,6 +4,17 @@ use schemars::JsonSchema;
 use secret_toolkit::storage::{Keymap, KeymapBuilder};
 use serde::{Deserialize, Serialize};
 
+/*TODO
+secret-business-card-workshop
+secret-dev-workshop
+
+pub const EXECUTE_INCREMENT_REPLY_ID: u64 = 1;
+let mut user_random = USER_RANDOM
+      .may_load(deps.storage)?
+      .unwrap_or(Random { random: random_u8 });
+USER_RANDOM.save(deps.storage, &user_random)?;
+*/
+
 //---------== singleton
 //pub const TOTAL: Item<u64> = Item::new(TOTAL_KEY);
 
@@ -25,7 +36,7 @@ pub fn config_read(storage: &dyn Storage) -> ReadonlySingleton<State> {
 }
 
 //---------== KeyMap
-pub static USERS: Keymap<Addr, User> = Keymap::new(b"password");
+pub static USERS: Keymap<Addr, User> = Keymap::new(b"users");
 
 pub static ADDR_VOTE: Keymap<Addr, User> =
   KeymapBuilder::new(b"page_vote").with_page_size(13).build();
