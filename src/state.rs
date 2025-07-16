@@ -45,6 +45,6 @@ pub static ADDR_VOTE: Keymap<Addr, User> =
 pub struct User {
   pub name: String,
   pub password: String,
-  pub balance: u64,
+  pub balance: u128,
   pub updated_at: u64,
 }

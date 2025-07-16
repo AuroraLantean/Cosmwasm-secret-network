@@ -35,12 +35,8 @@ pub fn instantiate(
 pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> StdResult<Response>
 /*Result<Response<Empty>, ContractError>*/ {
   match msg {
-    ExecuteMsg::AddUser {
-      name,
-      password,
-      balance,
-    } => try_add_user(deps, env, info, name, password, balance),
-    ExecuteMsg::Deposit { amount } => try_deposit(deps, env, info, amount),
+    ExecuteMsg::AddUser { name, password } => try_add_user(deps, env, info, name, password),
+    ExecuteMsg::Deposit {} => try_deposit(deps, env, info),
     ExecuteMsg::Increment { amt } => try_increment(deps, env, amt),
     ExecuteMsg::RemoveUser { addr } => try_remove_user(deps, env, info, addr),
     ExecuteMsg::Decrement { amt } => try_decrement(deps, env, amt),
@@ -93,15 +89,19 @@ pub fn try_remove_user(
   deps.api.debug("success");
   Ok(Response::default())
 }
-pub fn try_deposit(
-  deps: DepsMut,
-  _env: Env,
-  info: MessageInfo,
-  amount: u64,
-) -> StdResult<Response> /*Result<Response, ContractError>*/
+pub fn try_deposit(deps: DepsMut, _env: Env, info: MessageInfo) -> StdResult<Response> /*Result<Response, ContractError>*/
 {
   deps.api.debug("try_deposit");
-  let sender = info.sender.clone();
+  let sender = info.sender; //.clone();
+
+  //let funds: Vec<Coin> = info.funds;
+  if info.funds.len() != 1 {
+    return Err(StdError::generic_err("Only One Token is accepted"));
+  }
+  if info.funds[0].denom != "uscrt" {
+    return Err(StdError::generic_err("Only SCRT is accepted"));
+  }
+  let amount = info.funds[0].amount.u128();
 
   let mut user = USERS
     .get(deps.storage, &sender)
@@ -119,16 +119,26 @@ pub fn try_add_user(
   info: MessageInfo,
   name: String,
   password: String,
-  balance: u64,
 ) -> StdResult<Response> /*Result<Response, ContractError>*/ {
   deps.api.debug("try_add_user");
   let sender: Addr = info.sender;
   deps.api.debug(sender.as_str());
 
+  //let funds: Vec<Coin> = info.funds;
+  if info.funds.len() != 1 {
+    return Err(StdError::generic_err("Only One Token is accepted"));
+  }
+  if info.funds[0].denom != "uscrt" {
+    return Err(StdError::generic_err("Only SCRT is accepted"));
+  }
+  let amount = info.funds[0].amount.u128();
+  let str = format!("addUser() amount:{}", amount);
+  deps.api.debug(&str);
+
   let user = User {
     name,
     password: password.clone(),
-    balance,
+    balance: amount,
     updated_at: env.block.time.seconds(),
   };
   USERS.insert(deps.storage, &sender, &user)?;
@@ -371,21 +381,22 @@ mod tests {
 
     let _res = instantiate(deps.as_mut(), mock_env(), info_owner.clone(), init_msg).unwrap();
 
-    //User1 stores password
+    //User1
     let user1 = Addr::unchecked("user1");
+    let balance = 100;
     let info = mock_info(
       "user1",
       &[Coin {
-        denom: "token".to_owned(),
-        amount: Uint128::new(2),
+        denom: "uscrt".to_owned(),
+        amount: Uint128::new(balance),
       }],
     );
     let password1 = "pw1".to_owned();
-    let balance = 122;
+
+    //Add user
     let msg = ExecuteMsg::AddUser {
       name: "user1".to_owned(),
       password: password1.clone(),
-      balance,
     };
     let _res = execute(deps.as_mut(), mock_env(), info.clone(), msg).unwrap();
 
@@ -400,9 +411,16 @@ mod tests {
     assert_eq!(password1, user.password);
     assert_eq!(balance, user.balance);
 
-    //--------== update balance
-    let amount = 15;
-    let msg = ExecuteMsg::Deposit { amount };
+    //--------== deposit/update balance
+    let amount = 37;
+    let info = mock_info(
+      "user1",
+      &[Coin {
+        denom: "uscrt".to_owned(),
+        amount: Uint128::new(amount),
+      }],
+    );
+    let msg = ExecuteMsg::Deposit {};
     let _res = execute(deps.as_mut(), mock_env(), info.clone(), msg).unwrap();
 
     let msg = QueryMsg::GetUser {

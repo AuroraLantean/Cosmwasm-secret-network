@@ -15,31 +15,14 @@ pub struct InstantiateMsg {
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ExecuteMsg {
-  Increment {
-    amt: u64,
-  },
-  Decrement {
-    amt: u64,
-  },
-  Reset {
-    count: u64,
-  },
-  AddUser {
-    name: String,
-    password: String,
-    balance: u64,
-  },
-  Deposit {
-    amount: u64,
-  },
-  RemoveUser {
-    addr: Addr,
-  },
+  Increment { amt: u64 },
+  Decrement { amt: u64 },
+  Reset { count: u64 },
+  AddUser { name: String, password: String },
+  Deposit {},
+  RemoveUser { addr: Addr },
   Flip {},
-  SendSCRT {
-    dest: Addr,
-    amount: u128,
-  },
+  SendSCRT { dest: Addr, amount: u128 },
 }
 
 //-----== Query
@@ -65,7 +48,7 @@ pub struct CountResp {
 pub struct UserResp {
   pub name: String,
   pub password: String,
-  pub balance: u64,
+  pub balance: u128,
   pub updated_at: u64,
 }
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq, JsonSchema)]
