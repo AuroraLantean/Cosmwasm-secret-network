@@ -20,6 +20,7 @@ USER_RANDOM.save(deps.storage, &user_random)?;
 
 pub static CONFIG_KEY: &[u8] = b"config";
 
+//use u128 in storage
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq, JsonSchema)]
 pub struct State {
   pub count: u64,

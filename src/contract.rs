@@ -8,7 +8,7 @@ use crate::{
 use cosmwasm_std::{
   Addr, BankMsg, Binary, Coin, CosmosMsg, Deps, DepsMut, Empty, Env, MessageInfo, Response,
   StdError, StdResult, Uint128, entry_point, to_binary,
-}; //ensure, ensure_ne, BankMsg, DepsMut
+}; //ensure, ensure_ne
 
 //#[cfg_attr(not(feature = "library"), entry_point)]
 #[entry_point]
@@ -42,20 +42,12 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
     ExecuteMsg::Decrement { amt } => try_decrement(deps, env, amt),
     ExecuteMsg::Reset { count } => try_reset(deps, env, info, count),
     ExecuteMsg::Flip {} => try_flip(deps, env),
-    ExecuteMsg::SendSCRT { dest, amount } => try_send_scrt(info, dest, amount),
+    ExecuteMsg::Withdraw {
+      denom,
+      dest,
+      amount,
+    } => try_withdraw(deps, info, denom, dest, amount),
   }
-}
-pub fn try_send_scrt(_info: MessageInfo, dest: Addr, amount: u128) -> StdResult<Response> {
-  let coins_to_send: Vec<Coin> = vec![Coin {
-    denom: "uscrt".to_string(),
-    amount: Uint128::from(amount),
-  }];
-  let message = CosmosMsg::Bank(BankMsg::Send {
-    to_address: dest.into_string(),
-    amount: coins_to_send,
-  });
-  let res = Response::new().add_message(message);
-  Ok(res)
 }
 pub fn try_flip(deps: DepsMut, env: Env) -> StdResult<Response> {
   config(deps.storage).update(|mut state| -> Result<_, StdError> {
@@ -83,11 +75,42 @@ pub fn try_remove_user(
 
   let _user = USERS
     .get(deps.storage, &addr)
-    .ok_or(StdError::generic_err("name incorrect"))?;
+    .ok_or(StdError::generic_err("user invalid"))?;
 
   USERS.remove(deps.storage, &addr)?;
   deps.api.debug("success");
   Ok(Response::default())
+}
+pub fn try_withdraw(
+  deps: DepsMut,
+  info: MessageInfo,
+  denom: String,
+  dest: Addr,
+  amount: Uint128,
+) -> StdResult<Response> {
+  deps.api.debug("try_withdraw");
+  let sender = info.sender;
+  let mut user = USERS
+    .get(deps.storage, &sender)
+    .ok_or(StdError::generic_err("user invalid"))?;
+  let amount_u128 = u128::from(amount);
+  if user.balance < amount_u128 {
+    return Err(StdError::generic_err("insufficient user balance"));
+  }
+  user.balance -= amount_u128;
+  USERS.insert(deps.storage, &sender, &user)?;
+
+  let coins_vec: Vec<Coin> = vec![Coin {
+    denom: denom,   //"uscrt".to_string(),
+    amount: amount, // Uint128::from(amount),
+  }];
+  let message = CosmosMsg::Bank(BankMsg::Send {
+    to_address: dest.into_string(),
+    amount: coins_vec,
+  });
+  let res = Response::new().add_message(message);
+  deps.api.debug("success");
+  Ok(res)
 }
 pub fn try_deposit(deps: DepsMut, _env: Env, info: MessageInfo) -> StdResult<Response> /*Result<Response, ContractError>*/
 {
@@ -105,7 +128,7 @@ pub fn try_deposit(deps: DepsMut, _env: Env, info: MessageInfo) -> StdResult<Res
 
   let mut user = USERS
     .get(deps.storage, &sender)
-    .ok_or(StdError::generic_err("name incorrect"))?;
+    .ok_or(StdError::generic_err("user invalid"))?;
 
   user.balance += amount;
   USERS.insert(deps.storage, &sender, &user)?;
@@ -206,7 +229,7 @@ fn greet(deps: Deps, env: Env, name: String) -> StdResult<GreetResp> {
 fn query_user(deps: Deps, addr: Addr) -> StdResult<UserResp> {
   let user = USERS
     .get(deps.storage, &addr)
-    .ok_or(StdError::generic_err("name incorrect"))?;
+    .ok_or(StdError::generic_err("user invalid"))?;
 
   let resp = UserResp {
     name: user.name,
@@ -221,13 +244,13 @@ fn query_count(deps: Deps) -> StdResult<CountResp> {
   Ok(CountResp { count: state.count })
 }
 
+//#A13A
 // cargo test -- --nocapture
 #[cfg(test)]
 mod tests {
   use super::*;
-  use cosmwasm_std::{Coin, StdError, StdResult, Uint128, from_binary};
+  use cosmwasm_std::{Coin, StdError, Uint128, from_binary};
   use cosmwasm_std::{Timestamp, testing::*};
-  use secret_toolkit::storage::{Item, Keymap}; //https://github.com/scrtlabs/secret-toolkit/tree/master/packages/storage
 
   fn set_time(sec_since_epoc: u64) -> Env {
     let mut env = mock_env();
@@ -362,7 +385,7 @@ mod tests {
   }
 
   #[test]
-  fn add_user() {
+  fn lifecycle_user() {
     let mut deps = mock_dependencies_with_balance(&[Coin {
       denom: "token".to_owned(),
       amount: Uint128::new(2),
@@ -431,6 +454,24 @@ mod tests {
     println!("Queried user: {:?}", user);
     assert_eq!(balance + amount, user.balance);
 
+    //--------== Withdraw for User
+    let amt_u128 = 137u128;
+    let amt128 = Uint128::from(amt_u128);
+    let msg = ExecuteMsg::Withdraw {
+      denom: "uscrt".to_string(),
+      dest: user1.clone(),
+      amount: amt128,
+    };
+    let info = mock_info("user1", &[]);
+    let _res = execute(deps.as_mut(), mock_env(), info, msg).unwrap();
+
+    let msg = QueryMsg::GetUser {
+      addr: user1.clone(),
+    };
+    let res: Binary = query(deps.as_ref(), mock_env(), msg).unwrap();
+    let user: UserResp = from_binary(&res).unwrap();
+    println!("Queried user: {:?}", user);
+    assert_eq!(0, user.balance);
     //--------== Remove User
     let msg = ExecuteMsg::RemoveUser {
       addr: user1.clone(),

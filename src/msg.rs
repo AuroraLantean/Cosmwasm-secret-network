@@ -1,4 +1,4 @@
-use cosmwasm_std::Addr;
+use cosmwasm_std::{Addr, Uint128};
 //inputs
 use schemars::JsonSchema;
 use serde::{Deserialize, Serialize};
@@ -12,17 +12,33 @@ pub struct InstantiateMsg {
 }
 
 //-----== Execute by function signature
+//prefer to use Uint128 in entrypoint messages
 #[derive(Serialize, Deserialize, Clone, Debug, Eq, PartialEq, JsonSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum ExecuteMsg {
-  Increment { amt: u64 },
-  Decrement { amt: u64 },
-  Reset { count: u64 },
-  AddUser { name: String, password: String },
+  Increment {
+    amt: u64,
+  },
+  Decrement {
+    amt: u64,
+  },
+  Reset {
+    count: u64,
+  },
+  AddUser {
+    name: String,
+    password: String,
+  },
   Deposit {},
-  RemoveUser { addr: Addr },
+  RemoveUser {
+    addr: Addr,
+  },
   Flip {},
-  SendSCRT { dest: Addr, amount: u128 },
+  Withdraw {
+    denom: String,
+    dest: Addr,
+    amount: Uint128,
+  },
 }
 
 //-----== Query
