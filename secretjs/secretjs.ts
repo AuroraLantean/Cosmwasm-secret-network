@@ -22,6 +22,17 @@ export const client = new SecretNetworkClient({
 	walletAddress: wallet.address,
 });
 
+export const getScrtBalance = async (userClient: SecretNetworkClient) => {
+	const balcResp = await userClient.query.bank.balance({
+		address: userClient.address,
+		denom: "uscrt",
+	});
+	if (balcResp?.balance?.amount === undefined) {
+		throw new Error(`Failed to get balance for address: ${userClient.address}`);
+	}
+	return balcResp.balance.amount;
+};
+
 //echo "testnets: Osmosis, Juno, Terra, or others"
 //https://docs.osmosis.zone/cosmwasm/testnet/cosmwasm-deployment/
 export const secretDeploy = async (secretCtrtPath: string, verbose = false) => {
@@ -47,6 +58,11 @@ export const secretDeploy = async (secretCtrtPath: string, verbose = false) => {
 	); ////https://github.com/scrtlabs/secret.js?tab=readme-ov-file#secretnetworkclient
 
 	if (verbose) ll(tx);
+	/*if (tx.code !== 0) {
+		console.log(`Failed to get code id: ${JSON.stringify(tx.rawLog)}`);
+		throw new Error(`Failed to upload contract`);
+	}*/
+
 	const codeId = findTxnData(tx.arrayLog, "codeId");
 	ll(`SECRET_CONTRACT_CODE_ID= ${codeId}`);
 	if (!codeId) {
@@ -189,9 +205,10 @@ export const secretExecute = async (
 	funcName: string,
 	arg1: string,
 	arg2: string,
+	arg3: string,
 ) => {
 	ll(`secretExecute: 
-funcName=${funcName}, arg1: ${arg1}, arg2: ${arg2}`);
+funcName=${funcName}, arg1: ${arg1}, arg2: ${arg2}, arg3: ${arg3}`);
 	ll("ctrtAddr:", ctrtAddr);
 	if (!ctrtAddr) {
 		console.error("ctrtAddr invalid");
@@ -215,26 +232,32 @@ funcName=${funcName}, arg1: ${arg1}, arg2: ${arg2}`);
 			return;
 		}
 		msg = {
-			store_password: {
-				password_key: arg1,
-				password_value: arg2,
+			add_user: {
+				name: arg1,
+				password: arg2,
 			},
 		};
-	} else if (funcName === "transfer_snip20") {
-		if (!arg1) {
-			console.error("arg1 invalid");
+	} else if (funcName === "withdraw") {
+		if (!arg1 || !arg2 || !arg3) {
+			console.error("one arg is invalid");
 			return;
 		}
-		if (!arg2) {
-			console.error("arg2 invalid");
-			return;
-		}
-		//Contract - module call
 		msg = {
-			transfer: {
-				owner: wallet.address,
-				amount: arg1,
-				recipient: arg2,
+			withdraw: {
+				denom: arg1,
+				dest: arg2,
+				amount: arg3,
+			},
+		};
+	} else if (funcName === "cross_contract") {
+		if (!arg1 || !arg2) {
+			console.error("one arg is invalid");
+			return;
+		}
+		msg = {
+			cross_contract: {
+				contract_addr: arg1,
+				code_hash: arg2,
 			},
 		};
 	} else {

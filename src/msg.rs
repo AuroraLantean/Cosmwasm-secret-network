@@ -39,6 +39,10 @@ pub enum ExecuteMsg {
     dest: Addr,
     amount: Uint128,
   },
+  CrossContract {
+    contract_addr: String,
+    code_hash: String,
+  },
 }
 
 //-----== Query

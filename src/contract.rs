@@ -1,14 +1,15 @@
 //use schemars::JsonSchema;
 //use std::fmt;
+use crate::counter::CounterExecuteMsg;
 use crate::{
-  error::ContractError,
+  //error::ContractError,
   msg::{CountResp, ExecuteMsg, FlipResponse, GreetResp, InstantiateMsg, QueryMsg, UserResp},
-  state::{ADDR_VOTE, State, USERS, User, config, config_read},
+  state::{State, USERS, User, config, config_read},
 };
 use cosmwasm_std::{
-  Addr, BankMsg, Binary, Coin, CosmosMsg, Deps, DepsMut, Empty, Env, MessageInfo, Response,
-  StdError, StdResult, Uint128, entry_point, to_binary,
-}; //ensure, ensure_ne
+  Addr, BankMsg, Binary, Coin, CosmosMsg, Deps, DepsMut, Env, MessageInfo, Response, StdError,
+  StdResult, Uint128, WasmMsg, entry_point, to_binary,
+}; //Empty, ensure, ensure_ne
 
 //#[cfg_attr(not(feature = "library"), entry_point)]
 #[entry_point]
@@ -47,8 +48,33 @@ pub fn execute(deps: DepsMut, env: Env, info: MessageInfo, msg: ExecuteMsg) -> S
       dest,
       amount,
     } => try_withdraw(deps, info, denom, dest, amount),
+    ExecuteMsg::CrossContract {
+      contract_addr,
+      code_hash,
+    } => try_cross_contract(deps, env, contract_addr, code_hash),
   }
 }
+pub fn try_cross_contract(
+  _deps: DepsMut,
+  _env: Env,
+  contract_addr: String,
+  code_hash: String,
+) -> StdResult<Response> {
+  let exec_msg = CounterExecuteMsg::Increment {};
+
+  let cosmos_msg = WasmMsg::Execute {
+    contract_addr: contract_addr,
+    code_hash: code_hash,
+    msg: to_binary(&exec_msg)?,
+    funds: vec![],
+  };
+  Ok(
+    Response::new()
+      .add_message(cosmos_msg)
+      .add_attribute("action", "increment"),
+  )
+}
+
 pub fn try_flip(deps: DepsMut, env: Env) -> StdResult<Response> {
   config(deps.storage).update(|mut state| -> Result<_, StdError> {
     let coin_flip: Vec<u8> = env.block.random.unwrap().0;
@@ -81,6 +107,7 @@ pub fn try_remove_user(
   deps.api.debug("success");
   Ok(Response::default())
 }
+
 pub fn try_withdraw(
   deps: DepsMut,
   info: MessageInfo,
@@ -112,20 +139,30 @@ pub fn try_withdraw(
   deps.api.debug("success");
   Ok(res)
 }
+
 pub fn try_deposit(deps: DepsMut, _env: Env, info: MessageInfo) -> StdResult<Response> /*Result<Response, ContractError>*/
 {
   deps.api.debug("try_deposit");
   let sender = info.sender; //.clone();
 
   //let funds: Vec<Coin> = info.funds;
-  if info.funds.len() != 1 {
-    return Err(StdError::generic_err("Only One Token is accepted"));
+  if info.funds.is_empty() {
+    return Err(StdError::generic_err("No fund received"));
   }
+  if info.funds.len() != 1 {
+    return Err(StdError::generic_err("Only one fund is accepted"));
+  }
+  /*for coin in info.funds.iter() {
+    if coin.denom != "uscrt" {}
+    if coin.amount.is_zero() {}
+  }*/
   if info.funds[0].denom != "uscrt" {
     return Err(StdError::generic_err("Only SCRT is accepted"));
   }
   let amount = info.funds[0].amount.u128();
-
+  if amount == 0 {
+    return Err(StdError::generic_err("Amount must be greater than zero"));
+  }
   let mut user = USERS
     .get(deps.storage, &sender)
     .ok_or(StdError::generic_err("user invalid"))?;
@@ -135,7 +172,11 @@ pub fn try_deposit(deps: DepsMut, _env: Env, info: MessageInfo) -> StdResult<Res
   deps.api.debug("success");
   Ok(Response::default())
 }
-
+/*     Ok(Response::new()
+.add_attribute("action", "receive_native")
+.add_attribute("amount", amount.to_string())
+.add_attribute("denom", "uscrt"))
+*/
 pub fn try_add_user(
   deps: DepsMut,
   env: Env,
@@ -272,12 +313,12 @@ mod tests {
       flip: vec![1, 2, 3],
     };
 
-    // we can just call .unwrap() to assert this was a success
+    // .unwrap() to assert this was a success
     let res = instantiate(deps.as_mut(), mock_env(), info, init_msg).unwrap();
 
     assert_eq!(0, res.messages.len());
 
-    // it worked, let's query the state
+    // query the state
     let res = query(deps.as_ref(), mock_env(), QueryMsg::GetCount {}).unwrap();
     let value: CountResp = from_binary(&res).unwrap();
     assert_eq!(17, value.count);
@@ -472,6 +513,7 @@ mod tests {
     let user: UserResp = from_binary(&res).unwrap();
     println!("Queried user: {:?}", user);
     assert_eq!(0, user.balance);
+
     //--------== Remove User
     let msg = ExecuteMsg::RemoveUser {
       addr: user1.clone(),
@@ -488,6 +530,7 @@ mod tests {
     }
   }
 
+  //test greet() and set_time()
   #[test]
   fn greet_query() {
     let name = "John".to_owned();
@@ -513,8 +556,7 @@ mod tests {
         greet: format!("Hello {}", name)
       }
     );
-
     let env = set_time(1752489600);
-    let resp = greet(deps.as_ref(), env, name.clone()).unwrap();
+    let _resp = greet(deps.as_ref(), env, name.clone()).unwrap();
   }
 }
